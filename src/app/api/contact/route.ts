@@ -30,36 +30,39 @@ export async function POST(request: NextRequest) {
       subject: validatedData.subject,
       message: validatedData.message,
     })
-
-        // Fire and forget — log the result but don't block the response
-    emailService
-      .sendEmail({
-                to: adminAddress,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        replyTo: validatedData.email,
-      })
-      .then((sent) => {
-        if (!sent) console.error('Failed to send contact notification email')
-      })
-
-    // Confirmation receipt to the visitor (mirrors the two-email pattern)
-            const confirmationContent = getContactConfirmationEmail({
+    const confirmationContent = getContactConfirmationEmail({
       name: validatedData.name,
       email: validatedData.email,
       message: validatedData.message,
     })
-                // Send confirmation to the submitter
-    emailService
-      .sendEmail({
+
+    // Concurrent AND awaited: serverless platforms freeze the process right
+    // after the response is returned, killing unawaited SMTP sockets. Previous
+    // fire-and-forget version meant these two emails NEVER completed on Vercel.
+    const [notifyResult, confirmResult] = await Promise.allSettled([
+      emailService.sendEmail({
+        to: adminAddress,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        replyTo: validatedData.email,
+      }),
+      emailService.sendEmail({
         to: validatedData.email,
         subject: confirmationContent.subject,
         html: confirmationContent.html,
-      })
-      .then((sent) => {
-        if (!sent) console.error('Failed to send contact confirmation email')
-      })
+      }),
+    ])
 
+    if (notifyResult.status === 'rejected') {
+      console.error('Contact notification email threw:', notifyResult.reason)
+    } else if (!notifyResult.value) {
+      console.error('Failed to send contact notification email')
+    }
+    if (confirmResult.status === 'rejected') {
+      console.error('Contact confirmation email threw:', confirmResult.reason)
+    } else if (!confirmResult.value) {
+      console.error('Failed to send contact confirmation email')
+    }
     return NextResponse.json({ success: true, id: message.id }, { status: 201 })
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {

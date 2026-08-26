@@ -101,17 +101,39 @@ export const emailService = {
       return true;
     }
 
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to,
+      subject,
+      html,
+      text,
+      replyTo,
+    };
+
     try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to,
-        subject,
-        html,
-        text,
-        replyTo,
-      });
+      await transporter.sendMail(mailOptions);
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      // Connect-phase stalls (timeout before SMTP banner/auth) are transient
+      // on managed hosts (e.g. cold serverless egress) — one quick retry
+      // rescues most of them without touching the success path.
+      const isConnectFailure =
+        ['ETIMEDOUT', 'ECONNABORTED', 'ECONNRESET'].includes(error?.code) &&
+        (!error?.command || error.command === 'CONN');
+
+      if (isConnectFailure) {
+        console.warn('📧 Email connection stalled during connect — retrying once…');
+        try {
+          await new Promise((r) => setTimeout(r, 1500));
+          await transporter.sendMail(mailOptions);
+          console.log('📧 Email sent on retry →', to);
+          return true;
+        } catch (retryError) {
+          console.error('📧 Email send error (after retry):', retryError);
+          return false;
+        }
+      }
+
       console.error('📧 Email send error:', error);
       return false;
     }
