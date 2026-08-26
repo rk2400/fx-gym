@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { contactSchema } from '@/lib/validations/contact'
-import { sendEmail, getContactNotificationEmail } from '@/lib/email'
+import { emailService, getContactNotificationEmail, getContactConfirmationEmail, extractEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,19 +28,34 @@ export async function POST(request: NextRequest) {
       message: validatedData.message,
     })
 
-    // Fire and forget — log the result but don't block the response
-    sendEmail({
-      to: adminEmail,
-      subject: emailContent.subject,
-      html: emailContent.html,
-      text: emailContent.text,
-    }).then((result) => {
-      if (!result.success) {
-        console.error('Failed to send contact notification email:', result.error)
-      } else if (result.previewUrl) {
-        console.log('Contact notification preview:', result.previewUrl)
-      }
+        // Fire and forget — log the result but don't block the response
+    emailService
+      .sendEmail({
+        to: extractEmail(adminEmail),
+        subject: emailContent.subject,
+        html: emailContent.html,
+        replyTo: validatedData.email,
+      })
+      .then((sent) => {
+        if (!sent) console.error('Failed to send contact notification email')
+      })
+
+    // Confirmation receipt to the visitor (mirrors the two-email pattern)
+    const confirmationContent = getContactConfirmationEmail({
+      name: validatedData.name,
+      subject: validatedData.subject,
+      message: validatedData.message,
     })
+                // Send confirmation to the submitter
+    emailService
+      .sendEmail({
+        to: validatedData.email,
+        subject: confirmationContent.subject,
+        html: confirmationContent.html,
+      })
+      .then((sent) => {
+        if (!sent) console.error('Failed to send contact confirmation email')
+      })
 
     return NextResponse.json({ success: true, id: message.id }, { status: 201 })
   } catch (error) {

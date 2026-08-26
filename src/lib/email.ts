@@ -5,6 +5,7 @@ export interface EmailOptions {
   subject: string
   html: string
   text?: string
+  replyTo?: string
 }
 
 export interface EmailResult {
@@ -44,12 +45,13 @@ async function sendViaHttp(options: EmailOptions): Promise<EmailResult | null> {
           Authorization: `Bearer ${resendKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+                body: JSON.stringify({
           from,
           to: [options.to],
           subject: options.subject,
           html: options.html,
           text: options.text,
+          ...(options.replyTo ? { reply_to: options.replyTo } : {}),
         }),
       })
       if (!res.ok) {
@@ -83,12 +85,13 @@ async function sendViaHttp(options: EmailOptions): Promise<EmailResult | null> {
           'api-key': brevoKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+                body: JSON.stringify({
           sender: { email: fromEmail.trim(), name: fromName.trim() },
           to: [{ email: options.to }],
           subject: options.subject,
           htmlContent: options.html,
           textContent: options.text,
+          ...(options.replyTo ? { replyTo: [{ email: options.replyTo }] } : {}),
         }),
       })
       if (!res.ok) {
@@ -104,6 +107,46 @@ async function sendViaHttp(options: EmailOptions): Promise<EmailResult | null> {
         success: false,
         error:
           'Brevo request failed: ' +
+          (error instanceof Error ? error.message : 'unknown error'),
+      }
+    }
+  }
+
+    // 3) SendGrid (HTTP API — works on Vercel serverless)
+  const sendgridKey = process.env.EMAIL_SENDGRID_KEY
+  if (sendgridKey) {
+    try {
+      const atIdx = from.indexOf('<')
+      const fromEmail =
+        atIdx !== -1 ? from.slice(atIdx + 1, -1).trim() : from.trim()
+      const fromName = atIdx !== -1 ? from.slice(0, atIdx).trim() : 'FX Gym'
+      const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sendgridKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: options.to }] }],
+          from: { email: fromEmail, name: fromName },
+          subject: options.subject,
+          ...(options.replyTo ? { reply_to: { email: options.replyTo } } : {}),
+          content: [{ type: 'text/html', value: options.html }],
+        }),
+      })
+      if (!res.ok) {
+        return {
+          success: false,
+          error: `SendGrid API error ${res.status}: ${(await res.text()).slice(0, 300)}`,
+        }
+      }
+      const messageId = res.headers.get('x-message-id')
+      return { success: true, messageId: messageId ?? undefined }
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          'SendGrid request failed: ' +
           (error instanceof Error ? error.message : 'unknown error'),
       }
     }
@@ -171,12 +214,13 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
     }
     const transporter = cachedTransport as Transporter
 
-    const info = await transporter.sendMail({
+        const info = await transporter.sendMail({
       from,
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
+      ...(options.replyTo ? { replyTo: options.replyTo } : {}),
     })
 
     console.log(`📧 Email sent to ${options.to} (${info.messageId})`)
@@ -470,4 +514,154 @@ ${message}
 This message was submitted via the FX Gym website contact form.
 `
   return { subject, html, text }
+}
+
+/**
+ * Confirmation email sent back to the contact-form submitter.
+ * Mirrors the "two-email" pattern: admin notification + user receipt.
+ */
+export function getContactConfirmationEmail(contactData: {
+  name: string
+  subject: string
+  message: string
+}): { subject: string; html: string; text: string } {
+  const { name, subject: contactSubject, message } = contactData
+
+  const subject = `We've Received Your Message - FX Gym`
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">FX GYM - Contact Form</h1>
+      </div>
+      <div style="background: white; padding: 30px; border: 1px solid #eee; border-top: none; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #333; margin-top: 0;">Thank You for Contacting Us!</h2>
+        <p>Hi ${escapeHtml(name)},</p>
+        <p>We've received your message and will get back to you as soon as possible.</p>
+        <div style="margin: 20px 0; padding: 15px; background: #fff7ed; border-left: 4px solid #f97316; border-radius: 4px;">
+          <p style="margin: 0; white-space: pre-wrap; color: #333;">${escapeHtml(message)}</p>
+        </div>
+        <p>Our team typically responds within 24-48 hours during business days.</p>
+        <p style="margin-top: 30px; color: #666; font-size: 12px;">
+          If you have any urgent questions, please email us at support@fxgym.com
+        </p>
+      </div>
+      <p style="color: #666; font-size: 12px; text-align: center; margin-top: 20px;">
+        Thank you for your interest in FX GYM!
+      </p>
+    </body>
+    </html>
+  `
+
+  const text = `Thank You for Contacting Us - FX Gym
+
+Hi ${name},
+
+We've received your message and will get back to you as soon as possible.
+
+Subject: ${contactSubject}
+Message:
+${message}
+
+Our team typically responds within 24-48 hours during business days.
+`
+  return { subject, html, text }
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+}
+
+/**
+ * Facade over sendEmail exposing a simple, reference-style API:
+ *   emailService.sendEmail({ to, subject, html, replyTo })
+ *   emailService.sendOTP(email, code, subject?)
+ *
+ * Transport is delegated to sendEmail(), which uses HTTP providers
+ * (Resend / Brevo / SendGrid) on Vercel and nodemailer SMTP elsewhere.
+ */
+export class EmailService {
+  private transporter: Transporter | null = null
+
+  constructor() {
+    const host = process.env.EMAIL_SERVER_HOST
+    const user = process.env.EMAIL_SERVER_USER
+    const pass = process.env.EMAIL_SERVER_PASSWORD
+    if (host && user && pass) {
+      const port = Number(process.env.EMAIL_SERVER_PORT || 587)
+      this.transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+      })
+      this.transporter.verify().catch((err) =>
+        console.error('📧 Email transporter verification failed:', err?.message || err)
+      )
+    }
+  }
+
+  async sendEmail(options: EmailServiceOptions): Promise<boolean> {
+    const result = await sendEmail({
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      replyTo: options.replyTo,
+    })
+    if (!result.success) {
+      console.error('📧 emailService.sendEmail failed:', result.error)
+    }
+    return result.success
+  }
+
+  async sendOTP(email: string, code: string, subject = 'Your FX Gym Login OTP'): Promise<boolean> {
+    const digits = code.split('')
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a2e; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #0a0a0f 0%, #12121a 100%); border-radius: 16px; padding: 40px; color: #f0f0f5; text-align: center;">
+          <div style="margin-bottom: 24px;">
+            <span style="font-size: 32px;">🔐</span>
+          </div>
+          <h1 style="color: #f0f0f5; margin: 0 0 16px;">${subject}</h1>
+          <p style="color: #888899; margin: 0 0 24px;">Enter this code to continue:</p>
+          <div style="display: inline-flex; gap: 8px; justify-content: center; margin-bottom: 24px;">
+            ${digits
+              .map(
+                (d) =>
+                  `<span style="width: 48px; height: 56px; background: #0a0a0f; border: 2px solid #00ff88; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: #00ff88; font-family: monospace;">${d}</span>`
+              )
+              .join('')}
+          </div>
+          <p style="color: #ffaa00; font-size: 13px; margin: 0;">Code expires in 15 minutes</p>
+          <p style="color: #555566; font-size: 12px; margin: 24px 0 0;">If you didn't request this code, you can safely ignore this email.</p>
+        </div>
+      </body>
+      </html>
+    `
+    return this.sendEmail({ to: email, subject, html })
+  }
+}
+
+export const emailService = new EmailService()
+
+export interface EmailServiceOptions {
+  to: string
+  subject: string
+  html: string
+  replyTo?: string
+}
+
+/** Extract a bare address from either "name@email.com" or "Name <email.com>" */
+export function extractEmail(maybeDisplay: string): string {
+  const match = maybeDisplay?.match(/<([^>]+)>/)
+  return match ? match[1] : maybeDisplay
 }
