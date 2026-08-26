@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { contactSchema } from '@/lib/validations/contact'
-import { emailService, getContactNotificationEmail, getContactConfirmationEmail, extractEmail } from '@/lib/email'
+import { emailService, getContactNotificationEmail, getContactConfirmationEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,10 +20,13 @@ export async function POST(request: NextRequest) {
 
     // Send a notification email to the admin
     const adminEmail = process.env.EMAIL_FROM || 'admin@fxgym.com'
+    // Extract bare email address if EMAIL_FROM is in "Name <email>" format
+    const adminMatch = adminEmail.match(/<([^>]+)>/)
+    const adminAddress = adminMatch ? adminMatch[1] : adminEmail
     const emailContent = getContactNotificationEmail({
       name: validatedData.name,
       email: validatedData.email,
-      phone: validatedData.phone,
+      phone: validatedData.phone ?? 'Not provided',
       subject: validatedData.subject,
       message: validatedData.message,
     })
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
         // Fire and forget — log the result but don't block the response
     emailService
       .sendEmail({
-        to: extractEmail(adminEmail),
+                to: adminAddress,
         subject: emailContent.subject,
         html: emailContent.html,
         replyTo: validatedData.email,
@@ -41,9 +44,9 @@ export async function POST(request: NextRequest) {
       })
 
     // Confirmation receipt to the visitor (mirrors the two-email pattern)
-    const confirmationContent = getContactConfirmationEmail({
+            const confirmationContent = getContactConfirmationEmail({
       name: validatedData.name,
-      subject: validatedData.subject,
+      email: validatedData.email,
       message: validatedData.message,
     })
                 // Send confirmation to the submitter

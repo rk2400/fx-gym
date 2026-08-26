@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { generateMemberId, generateOTP, sendEmail, getWelcomeEmail } from '@/lib/email'
+import { generateMemberId, generateOTP, emailService, getWelcomeEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
 
     // Send welcome email: login credentials + verification OTP (+ membership details)
     const emailContent = getWelcomeEmail(memberId, name, email, tempPassword, membershipInfo)
-    const emailDelivery = await sendEmail({
+    const emailDelivery = await emailService.sendEmail({
       to: email,
       subject: emailContent.subject,
       html: emailContent.html,
@@ -253,8 +253,7 @@ export async function POST(request: NextRequest) {
         memberId,
         tempPassword,
       },
-      emailSent: emailDelivery.success,
-      emailPreviewUrl: emailDelivery.previewUrl ?? null,
+      emailSent: emailDelivery,
     }, { status: 201 })
   } catch (error) {
     console.error('Admin users POST error:', error)

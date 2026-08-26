@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-        // Send password reset OTP via emailService (HTTP provider on Vercel)
+        // Send password reset OTP
     await emailService.sendOTP(email, otpCode, 'Reset Your FX Gym Password')
 
     return NextResponse.json({ success: true })

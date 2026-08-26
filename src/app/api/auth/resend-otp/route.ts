@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-        // Send verification OTP via emailService (HTTP provider on Vercel)
+        // Send verification OTP
     await emailService.sendOTP(email, otpCode, 'Your FX Gym Verification Code')
 
     return NextResponse.json({ success: true })

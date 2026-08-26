@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sendEmail, getRoleChangeEmail } from '@/lib/email'
+import { emailService, getRoleChangeEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,7 +112,7 @@ export async function PATCH(
         currentUser.role,
         role
       )
-      await sendEmail({
+      await emailService.sendEmail({
         to: currentUser.email,
         subject: emailContent.subject,
         html: emailContent.html,
