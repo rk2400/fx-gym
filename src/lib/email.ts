@@ -28,7 +28,14 @@ function missingSmtpVars(): string[] {
   return REQUIRED_SMTP_VARS.filter((v) => !process.env[v]);
 }
 
-function createTransporter(): nodemailer.Transporter | null {
+/**
+ * Lazily created + cached. Resolved at SEND TIME against the live process.env
+ * so it can never go stale from module-init timing (e.g. evaluated during
+ * `next build` before the deploy environment injects variables).
+ */
+let cachedTransporter: nodemailer.Transporter | null = null;
+
+function getTransporter(): nodemailer.Transporter | null {
   const missing = missingSmtpVars();
   if (missing.length > 0) {
     console.warn(
@@ -37,23 +44,31 @@ function createTransporter(): nodemailer.Transporter | null {
     );
     return null;
   }
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT || 587),
-    secure:
-      process.env.EMAIL_SECURE === 'true' ||
-      Number(process.env.EMAIL_PORT || 587) === 465,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-  });
+
+  if (!cachedTransporter) {
+    cachedTransporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: Number(process.env.EMAIL_PORT || 587),
+      secure:
+        process.env.EMAIL_SECURE === 'true' ||
+        Number(process.env.EMAIL_PORT || 587) === 465,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+    });
+  }
+  return cachedTransporter;
 }
 
-const transporter = createTransporter();
+// Startup visibility: show WHICH vars this process actually received (values never logged).
+(function reportSmtpStatus() {
+  const status = REQUIRED_SMTP_VARS.map((v) => `${v}:${process.env[v] ? '✓' : '✗'}`).join(' ');
+  console.log(`📧 SMTP status → ${status} | port=${process.env.EMAIL_PORT ?? '587(default)'}`);
+})();
 
 export const emailService = {
   async sendEmail({
@@ -69,6 +84,7 @@ export const emailService = {
     replyTo?: string;
     text?: string;
   }): Promise<boolean> {
+    const transporter = getTransporter();
     if (!transporter) {
       // Same behaviour as the reference: unconfigured SMTP logs instead of sending.
       console.log('📧 [MOCK EMAIL]');
