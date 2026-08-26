@@ -1,4 +1,6 @@
 import nodemailer from 'nodemailer';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 export interface EmailOptions {
   to: string;
@@ -64,10 +66,15 @@ function getTransporter(): nodemailer.Transporter | null {
   return cachedTransporter;
 }
 
-// Startup visibility: show WHICH vars this process actually received (values never logged).
+// Startup visibility: show WHICH vars this process actually received (values never logged),
+// plus the working directory and whether a .env file sits beside it —
+// these two extra facts identify misconfigured deploys instantly.
 (function reportSmtpStatus() {
   const status = REQUIRED_SMTP_VARS.map((v) => `${v}:${process.env[v] ? '✓' : '✗'}`).join(' ');
-  console.log(`📧 SMTP status → ${status} | port=${process.env.EMAIL_PORT ?? '587(default)'}`);
+  const envFileHere = existsSync(join(process.cwd(), '.env'));
+  console.log(
+    `📧 SMTP status → ${status} | port=${process.env.EMAIL_PORT ?? '587(default)'} | cwd=${process.cwd()} | .env-in-cwd=${envFileHere}`
+  );
 })();
 
 export const emailService = {
