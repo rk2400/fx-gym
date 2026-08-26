@@ -1,0 +1,56 @@
+# Render Blueprint – deploys FX Gym as an always-on Node web service.
+# On Render, the existing Gmail SMTP credentials work (SMTP is NOT
+# serverless-restricted here), so no Resend/domain is required.
+#
+# Usage: push this repo to GitHub, then in Render → New → Blueprint →
+#         select the repo. Render will read this file automatically.
+#
+# NOTE: change the default URLs if your service name differs from `fx-gym`
+# (Render preview URL = https://<service-name>.onrender.com).
+
+databases:
+  - name: fx-gym-db
+    plan: free-steampipe
+    region: oregon
+
+services:
+  - type: web
+    name: fx-gym
+    runtime: node
+    plan: free
+    rootDir: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXTAUTH_URL
+        value: https://fx-gym.onrender.com
+        sync: false
+      - key: AUTH_TRUST_HOST
+        value: true
+      - key: NEXTAUTH_SECRET
+        value: CHANGE_ME_TO_A_LONG_RANDOM_STRING_32PLUS_CHARS
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://fx-gym.onrender.com
+        sync: false
+      - key: NEXT_PUBLIC_APP_NAME
+        value: FX Gym
+      # Email – Gmail SMTP (works on Render, an always-on server)
+      - key: EMAIL_SERVER_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_SERVER_PORT
+        value: "587"
+      - key: EMAIL_SERVER_USER
+        value: ultimatereviewer24@gmail.com
+      - key: EMAIL_SERVER_PASSWORD
+        value: CHANGE_ME_TO_YOUR_GMAIL_APP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        value: ultimatereviewer24@gmail.com
+      # Database – set to your Neon connection string
+      - key: DATABASE_URL
+        sync: false
+    buildCommand: npm install && npx prisma db push && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    autoDeploy: true

@@ -118,7 +118,10 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   const user = process.env.EMAIL_SERVER_USER
   const pass = process.env.EMAIL_SERVER_PASSWORD
   const from = process.env.EMAIL_FROM || 'FX Gym <no-reply@fxgym.com>'
-  const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
+  // Only Vercel actually blocks outbound SMTP (serverless). Render and other
+  // always-on hosts run NODE_ENV=production too but ARE NOT serverless, so
+  // SMTP must keep working for them.
+  const isVercel = process.env.VERCEL === '1'
 
   try {
     // Try HTTP API providers first – they work on Vercel serverless.
@@ -133,12 +136,11 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       return httpResult
     }
 
-    // HTTP providers are the only option that works on Vercel serverless.
-    // Even if SMTP creds exist (from a committed .env), port-587 SMTP is
-    // blocked there and would only produce a misleading ETIMEDOUT.
-    if (isServerless) {
+    // Only Vercel has no SMTP fallback (port-587 is blocked in serverless).
+    // On Render/other always-on hosts, fall through to SMTP below which works.
+    if (isVercel) {
       const err =
-        'No HTTP email provider configured for production. Set EMAIL_RESEND_KEY or EMAIL_BREVO_KEY in Vercel.'
+        'No HTTP email provider configured for Vercel. Set EMAIL_RESEND_KEY or EMAIL_BREVO_KEY in Vercel.'
       console.error('📧 Email send FAILED:', err)
       return { success: false, error: err }
     }
