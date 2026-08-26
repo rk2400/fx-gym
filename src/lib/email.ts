@@ -22,20 +22,38 @@ export interface EmailTemplateResult {
 
 interface Transporter extends nodemailer.Transporter {}
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: Number(process.env.EMAIL_PORT || 587),
-  secure:
-    process.env.EMAIL_SECURE === 'true' ||
-    Number(process.env.EMAIL_PORT || 587) === 465,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-});
+const REQUIRED_SMTP_VARS = ['EMAIL_HOST', 'EMAIL_USER', 'EMAIL_PASS'] as const;
+
+function missingSmtpVars(): string[] {
+  return REQUIRED_SMTP_VARS.filter((v) => !process.env[v]);
+}
+
+function createTransporter(): nodemailer.Transporter | null {
+  const missing = missingSmtpVars();
+  if (missing.length > 0) {
+    console.warn(
+      `📧 [MOCK EMAIL MODE] SMTP not configured — missing env var(s): ${missing.join(', ')}. ` +
+        `Set them (e.g. EMAIL_HOST=smtp.gmail.com, EMAIL_PORT=587, EMAIL_USER=..., EMAIL_PASS=...) to enable real sending in ANY environment.`
+    );
+    return null;
+  }
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT || 587),
+    secure:
+      process.env.EMAIL_SECURE === 'true' ||
+      Number(process.env.EMAIL_PORT || 587) === 465,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+  });
+}
+
+const transporter = createTransporter();
 
 export const emailService = {
   async sendEmail({
@@ -51,24 +69,29 @@ export const emailService = {
     replyTo?: string;
     text?: string;
   }): Promise<boolean> {
-    if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.log('📧 [DEV MOCK EMAIL]');
+    if (!transporter) {
+      // Same behaviour as the reference: unconfigured SMTP logs instead of sending.
+      console.log('📧 [MOCK EMAIL]');
       console.log('To:', to);
       console.log('Subject:', subject);
       console.log('Body:', html);
       return true;
     }
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to,
-      subject,
-      html,
-      text,
-      replyTo,
-    });
-
-    return true;
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to,
+        subject,
+        html,
+        text,
+        replyTo,
+      });
+      return true;
+    } catch (error) {
+      console.error('📧 Email send error:', error);
+      return false;
+    }
   },
 
   async sendOTP(
