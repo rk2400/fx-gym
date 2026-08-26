@@ -1,0 +1,13 @@
+  ▲ Next.js 14.2.5
+  - Local:        http://localhost:3100
+  - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.5s
+ ○ Compiling /api/contact ...
+ ✓ Compiled /api/contact in 1349ms (117 modules)
+prisma:query INSERT INTO "public"."ContactMessage" ("id","name","email","phone","subject","message","is_read","created_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."ContactMessage"."id", "public"."ContactMessage"."name", "public"."ContactMessage"."email", "public"."ContactMessage"."phone", "public"."ContactMessage"."subject", "public"."ContactMessage"."message", "public"."ContactMessage"."is_read", "public"."ContactMessage"."created_at"
+ POST /api/contact 201 in 5382ms
+[?25h
+
+C:\Users\khura\Documents\Default Project\fx-gym>More? More? 

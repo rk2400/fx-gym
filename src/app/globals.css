@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Font CSS variables (--font-inter / --font-space-grotesk) are injected by
+     next/font in src/app/layout.tsx. Do NOT redefine them here with static
+     family names – that overrides the optimized self-hosted fonts and slows
+     down initial page load. */
+
+  * {
+    @apply border-gym-border;
+  }
+
+  body {
+    @apply bg-gym-bg text-gym-text font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    @apply bg-gym-primary/30 text-gym-text;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gym-bg;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gym-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gym-text-muted;
+  }
+}
+
+@layer components {
+  .container {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .section {
+    @apply py-16 sm:py-24 lg:py-32;
+  }
+
+  .section-sm {
+    @apply py-12 sm:py-16 lg:py-20;
+  }
+
+  .heading-1 {
+    @apply font-heading text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl;
+  }
+
+  .heading-2 {
+    @apply font-heading text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl;
+  }
+
+  .heading-3 {
+    @apply font-heading text-2xl font-semibold tracking-tight sm:text-3xl;
+  }
+
+  .heading-4 {
+    @apply font-heading text-xl font-semibold tracking-tight sm:text-2xl;
+  }
+
+  .text-body {
+    @apply text-base leading-relaxed text-gym-text-muted;
+  }
+
+  .text-body-lg {
+    @apply text-lg leading-relaxed text-gym-text-muted;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md bg-gym-primary px-6 py-3 text-sm font-semibold text-gym-bg shadow-neon-primary transition-all hover:bg-gym-primary-dim hover:shadow-neon-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gym-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gym-bg disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-md border-2 border-gym-primary bg-transparent px-6 py-3 text-sm font-semibold text-gym-primary transition-all hover:bg-gym-primary hover:text-gym-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gym-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gym-bg disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-medium text-gym-text transition-colors hover:bg-gym-surface hover:text-gym-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gym-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gym-bg disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:border-gym-primary/50 hover:shadow-neon-primary/20;
+  }
+
+  .input-field {
+    @apply flex h-10 w-full rounded-md border border-gym-border bg-gym-surface px-3 py-2 text-gym-text placeholder:text-gym-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gym-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gym-bg disabled:cursor-not-allowed disabled:opacity-50 transition-colors;
+  }
+
+  .label-text {
+    @apply mb-1.5 block text-sm font-medium text-gym-text;
+  }
+
+  .link-primary {
+    @apply text-gym-primary underline underline-offset-2 hover:text-gym-primary-dim transition-colors;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-in {
+    animation: animateIn 0.3s ease-out forwards;
+  }
+
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes accordionDown {
+    from { height: 0; opacity: 0; }
+    to { height: var(--radix-accordion-content-height); opacity: 1; }
+  }
+
+  @keyframes accordionUp {
+    from { height: var(--radix-accordion-content-height); opacity: 1; }
+    to { height: 0; opacity: 0; }
+  }
+
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
+  .stagger-6 { animation-delay: 0.6s; }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-gym-primary to-gym-secondary;
+  }
+
+  .glass {
+    @apply bg-gym-surface/80 backdrop-blur-md border border-gym-border/50;
+  }
+
+  .neon-border {
+    @apply relative before:absolute before:inset-0 before:rounded-lg before:border before:border-gym-primary/50 before:shadow-neon-primary before:opacity-0 before:transition-opacity hover:before:opacity-100;
+  }
+
+  /* Neon marquee ticker */
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  .animate-marquee {
+    animation: marquee 28s linear infinite;
+  }
+
+  .marquee-hover:hover .animate-marquee {
+    animation-play-state: paused;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee {
+      animation: none;
+    }
+  }
+}
