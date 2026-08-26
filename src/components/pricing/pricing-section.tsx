@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
@@ -34,14 +34,14 @@ const FALLBACK_PACKS: DisplayPack[] = [
   },
   {
     id: 'semiannual', name: '6 Month Membership',
-    description: 'Half-year commitment with serious savings – Rs 6000 saved vs monthly billing.',
+    description: 'Half-year commitment with serious savings â€“ Rs 6000 saved vs monthly billing.',
     price: 12000, duration: 180,
     features: ['Everything in 3 Month Membership', 'Save Rs 6000 vs monthly billing', 'Quarterly Body Composition Scan', 'Personalized Program Review', 'Guest Passes Included'],
     popular: false,
   },
   {
     id: 'annual', name: '12 Month Membership',
-    description: 'Best value for the committed – Rs 18000 saved vs monthly billing.',
+    description: 'Best value for the committed â€“ Rs 18000 saved vs monthly billing.',
     price: 18000, duration: 365,
     features: ['Everything in 6 Month Membership', 'Biggest savings vs monthly billing', 'Unlimited Guest Passes', 'Quarterly PT Session (4x/year)', 'Premium Recovery Access', 'Exclusive Member Events', 'Lifetime Price Lock Guarantee'],
     popular: false,
@@ -131,7 +131,7 @@ export function PricingSection() {
                 </ul>
 
                 <Button className="w-full" variant={pack.popular ? 'default' : 'outline'} size="lg" asChild>
-                  <a href="/register">
+                  <a href="/contact">
                     Get Started <ChevronRight className="ml-2 h-4 w-4" aria-hidden="true" />
                   </a>
                 </Button>
@@ -142,7 +142,7 @@ export function PricingSection() {
 
         <div className="mt-12 text-center">
           <p className="mb-4 text-gym-text-muted">
-            All plans include a <strong className="text-gym-text">free 7-day trial</strong>. No credit card required.
+            Every membership includes <strong className="text-gym-text">full gym access from day one</strong>. Enrollment is handled by our front desk team.
           </p>
           <Button variant="outline" size="lg" asChild>
             <a href="/contact">Need a Custom Plan?</a>

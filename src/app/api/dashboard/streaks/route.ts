@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         longest: 0,
         thisWeek: 0,
         thisMonth: 0,
+        totalCheckins: 0,
       })
     }
 
@@ -101,6 +102,7 @@ export async function GET(request: NextRequest) {
       longest: longestStreak,
       thisWeek,
       thisMonth,
+      totalCheckins: checkins.length,
     })
   } catch (error) {
     console.error('Dashboard streaks GET error:', error)

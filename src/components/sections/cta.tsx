@@ -74,8 +74,8 @@ export function CTASection() {
           className="text-center"
         >
           <Button size="lg" className="group" asChild>
-            <Link href="/register">
-              Start Your Free Trial
+            <Link href="/contact">
+              Become a Member
               <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" aria-hidden="true" />
             </Link>
           </Button>

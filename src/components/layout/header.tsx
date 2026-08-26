@@ -116,7 +116,7 @@ export function Header() {
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
-                      onClick={() => signOut({ callbackUrl: '/' })}
+                      onClick={() => signOut({ callbackUrl: window.location.origin + '/' })}
                       className="text-gym-accent focus:text-gym-accent flex items-center space-x-2"
                     >
                       <LogOut className="h-4 w-4" />
@@ -129,7 +129,7 @@ export function Header() {
                 <Link href="/login">
                   <Button variant="ghost" size="sm">Sign In</Button>
                 </Link>
-                <Link href="/register">
+                <Link href="/contact">
                   <Button size="sm">Get Started</Button>
                 </Link>
               </>
@@ -215,7 +215,7 @@ export function Header() {
                   <Button 
                     variant="outline" 
                     className="w-full justify-start text-gym-accent hover:bg-gym-accent/10"
-                    onClick={() => { signOut({ callbackUrl: '/' }); setMobileMenuOpen(false); }}
+                    onClick={() => { signOut({ callbackUrl: window.location.origin + '/' }); setMobileMenuOpen(false); }}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
@@ -226,7 +226,7 @@ export function Header() {
                   <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="outline" className="w-full justify-start">Sign In</Button>
                   </Link>
-                  <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                  <Link href="/contact" onClick={() => setMobileMenuOpen(false)}>
                     <Button className="w-full justify-start">Get Started</Button>
                   </Link>
                 </>

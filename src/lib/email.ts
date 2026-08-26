@@ -19,40 +19,132 @@ let cachedTransport: Transporter | null = null
 let testAccountCreds: { user: string; pass: string } | null = null
 
 /**
- * Sends an email through SMTP.
+ * Sends an email.
  *
- * - If EMAIL_SERVER_HOST/USER/PASSWORD are configured → uses your real SMTP server
- *   (Gmail app-password, Brevo, SendGrid SMTP, Mailgun, etc.)
- * - Otherwise → falls back to an auto-created Ethereal test account. Messages are
- *   sent over real SMTP and can be opened via the returned `previewUrl`, but are
- *   NOT delivered to real inboxes. Perfect for development/testing.
+ * Transport selection (most preferred first):
+ *   1. EMAIL_RESEND_KEY  → Resend REST API (HTTPS 443, works on Vercel serverless)
+ *   2. EMAIL_BREVO_KEY   → Brevo (Sendinblue) REST API (HTTPS 443, works on Vercel serverless)
+ *   3. SMTP (EMAIL_SERVER_HOST/USER/PASSWORD) → Gmail app-password, SES, Mailgun, etc.
+ *      NOTE: plain SMTP (esp. smtp.gmail.com:587) is blocked on Vercel serverless –
+ *      "Greeting never received / ETIMEDOUT CONN". Configure Resend or Brevo for prod.
+ *   4. Ethereal test account – dev only, never throws.
  *
  * Never throws – callers receive { success, ... } and can react accordingly.
  */
+async function sendViaHttp(options: EmailOptions): Promise<EmailResult | null> {
+  const from = process.env.EMAIL_FROM || 'FX Gym <no-reply@fxgym.com>'
+
+  // 1) Resend
+  const resendKey = process.env.EMAIL_RESEND_KEY
+  if (resendKey) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from,
+          to: [options.to],
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+        }),
+      })
+      if (!res.ok) {
+        return {
+          success: false,
+          error: `Resend API error ${res.status}: ${(await res.text()).slice(0, 300)}`,
+        }
+      }
+      const data = (await res.json()) as { id?: string }
+      return { success: true, messageId: data.id }
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          'Resend request failed: ' +
+          (error instanceof Error ? error.message : 'unknown error'),
+      }
+    }
+  }
+
+  // 2) Brevo
+  const brevoKey = process.env.EMAIL_BREVO_KEY
+  if (brevoKey) {
+    try {
+      const [fromEmail, fromName] = /^([^<]+)\s*<\s*([^>]+)\s*>$/.test(from)
+        ? [(/^([^<]+)\s*<\s*([^>]+)\s*>$/.exec(from) as RegExpExecArray)[2], (/^([^<]+)\s*<\s*([^>]+)\s*>$/.exec(from) as RegExpExecArray)[1]]
+        : [from, 'FX Gym']
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { email: fromEmail.trim(), name: fromName.trim() },
+          to: [{ email: options.to }],
+          subject: options.subject,
+          htmlContent: options.html,
+          textContent: options.text,
+        }),
+      })
+      if (!res.ok) {
+        return {
+          success: false,
+          error: `Brevo API error ${res.status}: ${(await res.text()).slice(0, 300)}`,
+        }
+      }
+      const data = (await res.json()) as { messageId?: string }
+      return { success: true, messageId: data.messageId }
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          'Brevo request failed: ' +
+          (error instanceof Error ? error.message : 'unknown error'),
+      }
+    }
+  }
+
+  return null // no HTTP provider configured
+}
+
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   const host = process.env.EMAIL_SERVER_HOST
   const port = Number(process.env.EMAIL_SERVER_PORT || 587)
   const user = process.env.EMAIL_SERVER_USER
   const pass = process.env.EMAIL_SERVER_PASSWORD
   const from = process.env.EMAIL_FROM || 'FX Gym <no-reply@fxgym.com>'
+  const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
 
   try {
-    let transporter: Transporter
-    let isTestMode = false
+    // Try HTTP API providers first – they work on Vercel serverless.
+    const httpResult = await sendViaHttp(options)
+    if (httpResult) {
+      console.log(
+        `📧 HTTP email ${httpResult.success ? 'sent' : 'FAILED'} to ${options.to}` +
+          (httpResult.success && httpResult.messageId ? ` (${httpResult.messageId})` : '') +
+          (httpResult.success && httpResult.previewUrl ? ` – preview: ${httpResult.previewUrl}` : '') +
+          (httpResult.error ? ` → ${httpResult.error}` : '')
+      )
+      return httpResult
+    }
 
-    if (host && user && pass) {
-      // Real SMTP configuration
-      if (!cachedTransport) {
-        cachedTransport = nodemailer.createTransport({
-          host,
-          port,
-          secure: port === 465,
-          auth: { user, pass },
-        })
-      }
-      transporter = cachedTransport
-    } else {
-      // Zero-config dev/test mode (Ethereal)
+    // HTTP providers are the only option that works on Vercel serverless.
+    // Even if SMTP creds exist (from a committed .env), port-587 SMTP is
+    // blocked there and would only produce a misleading ETIMEDOUT.
+    if (isServerless) {
+      const err =
+        'No HTTP email provider configured for production. Set EMAIL_RESEND_KEY or EMAIL_BREVO_KEY in Vercel.'
+      console.error('📧 Email send FAILED:', err)
+      return { success: false, error: err }
+    }
+
+    if (!host || !user || !pass) {
+      // No SMTP config either – zero-config dev/test mode (Ethereal)
       if (!testAccountCreds) {
         const account = await nodemailer.createTestAccount()
         testAccountCreds = { user: account.user, pass: account.pass }
@@ -66,9 +158,16 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
           auth: { user: testAccountCreds.user, pass: testAccountCreds.pass },
         })
       }
-      transporter = cachedTransport
-      isTestMode = true
+    } else if (!cachedTransport) {
+      // Real SMTP configuration
+      cachedTransport = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+      })
     }
+    const transporter = cachedTransport as Transporter
 
     const info = await transporter.sendMail({
       from,
@@ -78,28 +177,8 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       text: options.text,
     })
 
-    // Ethereal embeds STATUS/MSGID props in the SMTP response – use nodemailer's
-    // helper first, then fall back to parsing the raw response ourselves so the
-    // admin panel always gets a working preview link in test mode.
-    let previewUrl: string | undefined = undefined
-    if (isTestMode) {
-      const fromHelper = nodemailer.getTestMessageUrl(info)
-      if (typeof fromHelper === 'string' && fromHelper) {
-        previewUrl = fromHelper
-      } else if (info.response) {
-        const msgid = /MSGID=([^\s\]]+)/.exec(info.response)
-        if (msgid) {
-          previewUrl = `https://ethereal.email/message/${msgid[1]}`
-        }
-      }
-    }
-
-    console.log(
-      `📧 Email sent to ${options.to} (${info.messageId})` +
-        (previewUrl ? ` – preview: ${previewUrl}` : '')
-    )
-
-    return { success: true, messageId: info.messageId, previewUrl }
+    console.log(`📧 Email sent to ${options.to} (${info.messageId})`)
+    return { success: true, messageId: info.messageId }
   } catch (error) {
     console.error('📧 Email send FAILED:', error)
     return {

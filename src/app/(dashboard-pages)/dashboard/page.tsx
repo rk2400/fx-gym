@@ -32,13 +32,14 @@ interface StreakData {
   longest: number
   thisWeek: number
   thisMonth: number
+  totalCheckins: number
 }
 
 export default function DashboardPage() {
   const { data: session } = useSession()
   const [membership, setMembership] = useState<Membership | null>(null)
   const [recentCheckins, setRecentCheckins] = useState<Checkin[]>([])
-  const [streakData, setStreakData] = useState<StreakData>({ current: 0, longest: 0, thisWeek: 0, thisMonth: 0 })
+  const [streakData, setStreakData] = useState<StreakData>({ current: 0, longest: 0, thisWeek: 0, thisMonth: 0, totalCheckins: 0 })
   const [loading, setLoading] = useState(true)
 
   const fetchData = async () => {
@@ -64,10 +65,10 @@ export default function DashboardPage() {
   }, [])
 
   const stats = [
-    { label: 'Current Streak', value: `${streakData.current} days`, icon: Flame, color: 'from-orange-500 to-red-500', trend: `+${streakData.thisWeek} this week` },
-    { label: 'This Month', value: `${streakData.thisMonth} visits`, icon: Calendar, color: 'from-gym-primary to-green-600', trend: `+${Math.max(0, streakData.thisMonth - 15)} vs last month` },
-    { label: 'Total Check-ins', value: '247', icon: Dumbbell, color: 'from-gym-secondary to-blue-600', trend: 'Since joining' },
-    { label: 'Active Goal', value: 'Build Strength', icon: Target, color: 'from-purple-500 to-gym-secondary', trend: 'Week 3 of 12' },
+    { label: 'Current Streak', value: `${streakData.current} days`, icon: Flame, color: 'from-orange-500 to-red-500', trend: `${streakData.thisWeek} this week` },
+    { label: 'This Month', value: `${streakData.thisMonth} visits`, icon: Calendar, color: 'from-gym-primary to-green-600', trend: `${streakData.thisWeek} this week` },
+    { label: 'Total Check-ins', value: `${streakData.totalCheckins}`, icon: Dumbbell, color: 'from-gym-secondary to-blue-600', trend: 'Since joining' },
+    { label: 'Longest Streak', value: `${streakData.longest} days`, icon: Trophy, color: 'from-purple-500 to-gym-secondary', trend: 'Personal best' },
   ]
 
   const quickActions = [
@@ -240,7 +241,7 @@ export default function DashboardPage() {
                       {membership.status === 'ACTIVE' ? (
                         <>
                           <Badge variant="success" className="mr-2">Active</Badge>
-                          Auto-renews • {Math.ceil((new Date(membership.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days remaining
+                          Valid until {formatDate(membership.endDate)} • {Math.max(0, Math.ceil((new Date(membership.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days remaining
                         </>
                       ) : (
                         <Badge variant="warning">Pending</Badge>

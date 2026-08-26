@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Button } from '@/components/ui/button'
 import { ArrowRight, Users, Zap, Flame, Target } from 'lucide-react'
@@ -37,7 +37,7 @@ export function HeroSection() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gym-primary opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-gym-primary" />
               </span>
-              <span>Now Open - Free 7-Day Trial</span>
+              <span>Now Open - New Members Welcome</span>
             </motion.span>
 
             <h1
@@ -55,8 +55,8 @@ export function HeroSection() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-12">
               <Button size="lg" className="group w-full sm:w-auto" asChild>
-                <a href="/register">
-                  Start Free Trial
+                <a href="/contact">
+                  Join Now
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
                 </a>
               </Button>
@@ -89,7 +89,7 @@ export function HeroSection() {
             <div className="relative mx-auto max-w-lg">
               <img
                 src="/Images/home_banner.png"
-                alt="FX Gym facility – premium equipment and training space"
+                alt="FX Gym facility â€“ premium equipment and training space"
                 className="w-full h-auto rounded-2xl shadow-neon-primary/20"
                 loading="lazy"
                 width={480}
