@@ -1,0 +1,8 @@
+services:
+  web:
+    build: .
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env # stays on YOUR machine/container host — never baked into the image
+    restart: unless-stopped
