@@ -6,6 +6,8 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { generateMemberId, generateOTP, sendEmail, getWelcomeEmail } from '@/lib/email'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)

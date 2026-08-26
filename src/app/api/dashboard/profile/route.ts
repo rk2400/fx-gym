@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { profileSchema } from '@/lib/validations/profile'
 
+export const dynamic = 'force-dynamic'
+
 /** Fields on the user record that the profile form may read/write. */
 const profileSelect = {
   id: true,
