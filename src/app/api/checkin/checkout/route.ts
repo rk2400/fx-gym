@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       checkIn: updatedCheckin.checkedIn.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
       checkOut: updatedCheckin.checkedOut?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) || null,
       duration,
-      type: 'strength', // Default, could be stored
+      type: updatedCheckin.type || 'other',
     })
   } catch (error) {
     console.error('Check-out error:', error)

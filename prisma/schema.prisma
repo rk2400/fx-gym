@@ -126,6 +126,7 @@ model Checkin {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   checkedIn DateTime @default(now()) @map("checked_in")
   checkedOut DateTime? @map("checked_out")
+  type      String?  @map("workout_type")
 }
 
 model ContactMessage {

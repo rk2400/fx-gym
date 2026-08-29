@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { calculateDistance } from '@/lib/geolocation'
+// import { calculateDistance } from '@/lib/geolocation'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,28 +22,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Workout type is required' }, { status: 400 })
     }
 
-    // Verify location if provided
-    let distance: number | null = null
-    if (typeof latitude === 'number' && typeof longitude === 'number') {
-      const gym = await prisma.gymLocation.findFirst({
-        where: { isActive: true }
-      })
+    // Geolocation verification commented out for testing
+    // Uncomment once testing is completed
+    // let distance: number | null = null
+    // if (typeof latitude === 'number' && typeof longitude === 'number') {
+    //   const gym = await prisma.gymLocation.findFirst({
+    //     where: { isActive: true }
+    //   })
 
-      if (gym) {
-        distance = calculateDistance(latitude, longitude, gym.latitude, gym.longitude)
+    //   if (gym) {
+    //     distance = calculateDistance(latitude, longitude, gym.latitude, gym.longitude)
         
-        // Server-side enforcement
-        if (distance > gym.radiusMeters) {
-          return NextResponse.json({ 
-            error: 'You are too far from the gym to check in',
-            distance: Math.round(distance),
-            radius: gym.radiusMeters
-          }, { status: 400 })
-        }
-      }
-    }
+    //     // Server-side enforcement
+    //     if (distance > gym.radiusMeters) {
+    //       return NextResponse.json({ 
+    //         error: 'You are too far from the gym to check in',
+    //         distance: Math.round(distance),
+    //         radius: gym.radiusMeters
+    //       }, { status: 400 })
+    //     }
+    //   }
+    // }
 
-    // Check if already checked in today
+    // Check if already checked in today (one check-in per day)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const tomorrow = new Date(today)
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         checkedIn: new Date(),
-        // Store location data for reference
+        type,
       }
     })
 
@@ -79,7 +80,6 @@ export async function POST(request: NextRequest) {
       checkOut: null,
       type,
       duration: 0,
-      distance: distance ? Math.round(distance) : undefined
     })
   } catch (error) {
     console.error('Check-in error:', error)

@@ -1,15 +1,17 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, CheckCircle, XCircle, Dumbbell, Calendar, Zap, Flame, Target, Loader2, ChevronLeft, ChevronRight, MapPin, Shield, AlertCircle, LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate, formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import { getCurrentPosition, formatDistance } from '@/lib/geolocation'
+// Geolocation feature commented out for testing
+// Uncomment once testing is completed
+// import { getCurrentPosition, formatDistance } from '@/lib/geolocation'
 import { toast } from 'sonner'
 
 const workoutTypes = [
@@ -21,13 +23,15 @@ const workoutTypes = [
   { id: 'other', label: 'Other', icon: Dumbbell, color: 'from-gym-text-muted to-gray-600' },
 ]
 
+// Geolocation feature commented out for testing
+// Uncomment once testing is completed
 // Matches GET /api/checkin/gym-location response (exact coordinates are never sent to the client)
-interface GymLocation {
-  name: string
-  address: string
-  radius: number
-  allowed: boolean
-}
+// interface GymLocation {
+//   name: string
+//   address: string
+//   radius: number
+//   allowed: boolean
+// }
 
 interface CheckinRecord {
   id: string
@@ -36,7 +40,7 @@ interface CheckinRecord {
   checkOut: string | null
   type?: string
   duration: number
-  distance?: number
+  // distance?: number // Geolocation feature commented out for testing
 }
 
 // Module-level helpers (were previously declared inside the component, and the
@@ -58,29 +62,54 @@ export default function CheckinPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [history, setHistory] = useState<CheckinRecord[]>([])
-  const [locationState, setLocationState] = useState<'idle' | 'locating' | 'verified' | 'denied' | 'error'>('idle')
-  const [gymLocation, setGymLocation] = useState<GymLocation | null>(null)
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
-  const [distance, setDistance] = useState<number | null>(null)
-  const [lastVerified, setLastVerified] = useState<Date | null>(null)
+  // Geolocation feature commented out for testing
+  // Uncomment once testing is completed
+  // const [locationState, setLocationState] = useState<'idle' | 'locating' | 'verified' | 'denied' | 'error'>('idle')
+  // const [gymLocation, setGymLocation] = useState<GymLocation | null>(null)
+  // const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null)
+  // const [distance, setDistance] = useState<number | null>(null)
+  // const [lastVerified, setLastVerified] = useState<Date | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false)
+  const checkInTimestampRef = useRef<Date | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Fetch gym location and check-in history on mount
+  // Fetch check-in history on mount (geolocation fetch commented out for testing)
   useEffect(() => {
-    fetchGymLocation()
     fetchHistory()
   }, [])
 
-  const fetchGymLocation = async () => {
-    try {
-      const res = await fetch('/api/checkin/gym-location')
-      if (res.ok) {
-        const data = await res.json()
-        setGymLocation(data)
-      }
-    } catch (error) {
-      console.error('Failed to fetch gym location:', error)
+  // Geolocation feature commented out for testing
+  // Uncomment once testing is completed
+  // const fetchGymLocation = async () => {
+  //   try {
+  //     const res = await fetch('/api/checkin/gym-location')
+  //     if (res.ok) {
+  //       const data = await res.json()
+  //       setGymLocation(data)
+  //     }
+  //   } catch (error) {
+  //     console.error('Failed to fetch gym location:', error)
+  //   }
+  // }
+
+  // Live elapsed-time timer — ticks every second while checked in
+  useEffect(() => {
+    if (isCheckedIn && checkInTimestampRef.current) {
+      timerRef.current = setInterval(() => {
+        const now = new Date()
+        const elapsed = Math.floor((now.getTime() - checkInTimestampRef.current!.getTime()) / 1000)
+        setElapsedSeconds(elapsed)
+      }, 1000)
     }
-  }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [isCheckedIn])
 
   const fetchHistory = async () => {
     try {
@@ -93,40 +122,42 @@ export default function CheckinPage() {
     }
   }
 
-  const verifyLocation = useCallback(async () => {
-    if (!gymLocation) return false
-
-    setLocationState('locating')
-    try {
-      const position = await getCurrentPosition()
-      const { latitude, longitude } = position.coords
-      setUserLocation({ lat: latitude, lon: longitude })
-
-      const res = await fetch('/api/checkin/verify-location', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude, longitude })
-      })
-
-      if (!res.ok) throw new Error('Verification failed')
-      const data = await res.json()
-      
-      setDistance(data.distance)
-      setLastVerified(new Date())
-      
-      if (data.allowed) {
-        setLocationState('verified')
-        return true
-      } else {
-        setLocationState('denied')
-        return false
-      }
-    } catch (error) {
-      console.error('Location verification error:', error)
-      setLocationState('error')
-      return false
-    }
-  }, [gymLocation])
+  // Geolocation feature commented out for testing
+  // Uncomment once testing is completed
+  // const verifyLocation = useCallback(async () => {
+  //   if (!gymLocation) return false
+  //
+  //   setLocationState('locating')
+  //   try {
+  //     const position = await getCurrentPosition()
+  //     const { latitude, longitude } = position.coords
+  //     setUserLocation({ lat: latitude, lon: longitude })
+  //
+  //     const res = await fetch('/api/checkin/verify-location', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ latitude, longitude })
+  //     })
+  //
+  //     if (!res.ok) throw new Error('Verification failed')
+  //     const data = await res.json()
+  // 
+  //     setDistance(data.distance)
+  //     setLastVerified(new Date())
+  // 
+  //     if (data.allowed) {
+  //       setLocationState('verified')
+  //       return true
+  //     } else {
+  //       setLocationState('denied')
+  //       return false
+  //     }
+  //   } catch (error) {
+  //     console.error('Location verification error:', error)
+  //     setLocationState('error')
+  //     return false
+  //   }
+  // }, [gymLocation])
 
   // Check if user is currently checked in
   useEffect(() => {
@@ -135,14 +166,13 @@ export default function CheckinPage() {
     if (todayCheckin) {
       setIsCheckedIn(true)
       setCheckInTime(todayCheckin.checkIn)
+      checkInTimestampRef.current = new Date(`${todayCheckin.date}T${todayCheckin.checkIn}`)
+      const elapsed = Math.floor((Date.now() - checkInTimestampRef.current.getTime()) / 1000)
+      setElapsedSeconds(elapsed > 0 ? elapsed : 0)
     }
   }, [history])
 
   const handleCheckIn = async () => {
-    // Verify location first
-    const allowed = await verifyLocation()
-    if (!allowed) return
-
     setIsLoading(true)
     try {
       const now = new Date()
@@ -154,9 +184,7 @@ export default function CheckinPage() {
         body: JSON.stringify({
           type: selectedWorkout,
           checkInTime: timeString,
-          latitude: userLocation?.lat,
-          longitude: userLocation?.lon,
-        })
+        }),
       })
 
       if (!res.ok) {
@@ -168,6 +196,8 @@ export default function CheckinPage() {
       setHistory(prev => [newCheckin, ...prev])
       setIsCheckedIn(true)
       setCheckInTime(timeString)
+      checkInTimestampRef.current = now
+      setElapsedSeconds(0)
       toast.success("You're checked in. Have a great workout! 💪")
     } catch (error) {
       console.error('Check-in failed:', error)
@@ -177,16 +207,17 @@ export default function CheckinPage() {
     }
   }
 
-  const handleCheckOut = async () => {
+  const handleCheckOut = () => {
+    setShowCheckoutDialog(true)
+  }
+
+  const confirmCheckOut = async () => {
+    setShowCheckoutDialog(false)
     setIsLoading(true)
     try {
-      const now = new Date()
-      const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-      
       const res = await fetch('/api/checkin/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checkOutTime: timeString })
       })
 
       if (!res.ok) {
@@ -200,6 +231,8 @@ export default function CheckinPage() {
       ))
       setIsCheckedIn(false)
       setCheckInTime('')
+      checkInTimestampRef.current = null
+      setElapsedSeconds(0)
       toast.success(`Checked out • ${updatedCheckin.duration} min session complete!`)
     } catch (error) {
       console.error('Check-out failed:', error)
@@ -220,9 +253,21 @@ export default function CheckinPage() {
     return checkin.checkOut ? 'completed' : 'active'
   }
 
-  const canCheckIn = locationState === 'verified' && gymLocation?.allowed
+  // Geolocation feature commented out for testing
+  // Uncomment once testing is completed
+  // const canCheckIn = locationState === 'verified' && gymLocation?.allowed
+  const canCheckIn = true // Always allow check-in during testing
+
+  // Format elapsed seconds into HH:MM:SS display
+  const formatElapsedTime = (totalSeconds: number): string => {
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
 
   return (
+    <>
     <div className="max-w-4xl mx-auto space-y-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -233,7 +278,9 @@ export default function CheckinPage() {
           <h1 className="heading-2 text-gym-text">Check In</h1>
           <p className="text-gym-text-muted mt-1">Track your gym visits and workout history</p>
         </div>
-        {gymLocation && (
+        {/* Geolocation feature commented out for testing */}
+        {/* Uncomment once testing is completed */}
+        {/* {gymLocation && (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gym-surface border border-gym-border text-sm">
             <MapPin className="h-4 w-4 text-gym-primary" />
             <span className="text-gym-text-muted">{gymLocation.name}</span>
@@ -241,7 +288,7 @@ export default function CheckinPage() {
               {gymLocation.radius}m check-in radius
             </span>
           </div>
-        )}
+        )} */}
       </motion.div>
 
       <motion.div
@@ -266,7 +313,9 @@ export default function CheckinPage() {
           <CardContent className="space-y-6">
             {!isCheckedIn ? (
               <div className="space-y-6">
-                {/* Location Status */}
+                {/* Geolocation feature commented out for testing */}
+                {/* Uncomment once testing is completed */}
+                {/* Location Status
                 <div className="p-4 rounded-xl border bg-gym-bg">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
@@ -279,7 +328,7 @@ export default function CheckinPage() {
                       {locationState === 'denied' && (
                         <AlertCircle className="h-5 w-5 text-yellow-500" />
                       )}
-                      {locationState === 'error' && (
+                      {/* {locationState === 'error' && (
                         <XCircle className="h-5 w-5 text-red-500" />
                       )}
                       <span className="font-medium text-gym-text">
@@ -299,46 +348,46 @@ export default function CheckinPage() {
                         )}
                         {locationState === 'error' && 'Failed to get location. Please enable location access.'}
                       </span>
-                    </div>
-                    {locationState !== 'verified' && (
+                    </div> */}
+                    {/* {locationState !== 'verified' && (
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={verifyLocation}
-                        disabled={locationState === 'locating'}
-                        className="ml-auto"
-                      >
-                        {locationState === 'locating' ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Locating...
-                          </>
-                        ) : (
-                          <>
-                            <LocateFixed className="mr-2 h-4 w-4" />
-                            Verify Location
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
+                        {/* onClick={verifyLocation} */}
+                        {/* disabled={locationState === 'locating'} */}
+                        {/* className="ml-auto" */}
+                      {/* > */}
+                        {/* {locationState === 'locating' ? ( */}
+                          {/* <> */}
+                            {/* <Loader2 className="mr-2 h-4 w-4 animate-spin" /> */}
+                            {/* Locating... */}
+                          {/* </> */}
+                        {/* ) : ( */}
+                          {/* <> */}
+                            {/* <LocateFixed className="mr-2 h-4 w-4" /> */}
+                            {/* Verify Location */}
+                          {/* </> */}
+                        {/* )} */}
+                      {/* </Button> */}
+                    {/* )} */}
+                  {/* </div> */}
 
-                  {locationState === 'verified' && distance !== null && (
-                    <div className="text-center p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <p className="text-sm text-green-500 font-medium">
-                        ✓ Within range • {formatDistance(distance)} from gym
-                      </p>
-                    </div>
-                  )}
+                  {/* {locationState === 'verified' && distance !== null && ( */}
+                    {/* <div className="text-center p-3 rounded-lg bg-green-500/10 border border-green-500/20"> */}
+                      {/* <p className="text-sm text-green-500 font-medium"> */}
+                        {/* ✓ Within range • {formatDistance(distance)} from gym */}
+                      {/* </p> */}
+                    {/* </div> */}
+                  {/* )} */}
 
-                  {locationState === 'denied' && distance !== null && (
-                    <div className="text-center p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                      <p className="text-sm text-yellow-500 font-medium">
-                        ✗ {formatDistance(distance)} away • Need to be within {gymLocation?.radius || 30}m
-                      </p>
-                    </div>
-                  )}
-                </div>
+                  {/* {locationState === 'denied' && distance !== null && ( */}
+                    {/* <div className="text-center p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20"> */}
+                      {/* <p className="text-sm text-yellow-500 font-medium"> */}
+                        {/* ✗ {formatDistance(distance)} away • Need to be within {gymLocation?.radius || 30}m */}
+                      {/* </p> */}
+                    {/* </div> */}
+                  {/* )} */}
+                {/* </div> */}
 
                 <div>
                   <label className="block text-sm font-medium text-gym-text mb-3">Workout Type</label>
@@ -407,7 +456,7 @@ export default function CheckinPage() {
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="p-4 rounded-xl bg-gym-bg">
-                    <p className="font-heading text-3xl font-bold text-gym-primary" id="duration-timer">00:00</p>
+                    <p className="font-heading text-3xl font-bold text-gym-primary" id="duration-timer">{formatElapsedTime(elapsedSeconds)}</p>
                     <p className="text-xs text-gym-text-muted">Duration</p>
                   </div>
                   <div className="p-4 rounded-xl bg-gym-bg">
@@ -533,9 +582,10 @@ export default function CheckinPage() {
                       <p className="font-medium text-gym-text">{getWorkoutType(checkin.type ?? 'other').label}</p>
                       <p className="text-sm text-gym-text-muted">
                         {formatDate(checkin.date)} • {checkin.checkIn} - {checkin.checkOut || 'In progress'}
-                        {checkin.distance !== undefined && (
+                        {/* Geolocation feature commented out for testing */}
+                        {/* {checkin.distance !== undefined && (
                           <span className="ml-2 text-xs text-gym-primary">({formatDistance(checkin.distance)})</span>
-                        )}
+                        )} */}
                       </p>
                     </div>
                   </div>
@@ -589,6 +639,71 @@ export default function CheckinPage() {
         </Card>
       </motion.div>
     </div>
+
+    {/* Checkout Confirmation Dialog */}
+    <AnimatePresence>
+      {showCheckoutDialog && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowCheckoutDialog(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-gym-surface border border-gym-border rounded-2xl shadow-2xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="p-4 rounded-full bg-gym-accent/10">
+                <XCircle className="h-10 w-10 text-gym-accent" />
+              </div>
+              <h3 className="heading-3 text-gym-text">Done for today?</h3>
+              <p className="text-gym-text-muted">
+                Are you sure you want to check out? Your workout session will be logged with a duration of{' '}
+                <span className="font-semibold text-gym-primary">{formatElapsedTime(elapsedSeconds)}</span>.
+              </p>
+              <div className="flex items-center space-x-2 text-sm text-gym-text-muted">
+                <Clock className="h-4 w-4" />
+                <span>Workout: {getWorkoutType(selectedWorkout).label}</span>
+              </div>
+            </div>
+            <div className="flex space-x-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowCheckoutDialog(false)}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-gym-accent hover:bg-red-600"
+                onClick={confirmCheckOut}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking Out...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Yes, Check Out
+                  </>
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   )
 }
 
