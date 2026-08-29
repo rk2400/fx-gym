@@ -35,6 +35,53 @@ interface ProfileData {
   address: string | null
 }
 
+/**
+ * Downscale any picked image to a compact JPEG data-URL (max 512px on the long edge).
+ * Lets users upload photos of ANY file size — no rejection — while keeping the stored
+ * payload small (DB-friendly and far below request-body limits).
+ * Small files and GIFs are passed through untouched.
+ */
+async function compressImage(file: File, maxEdge = 512, quality = 0.85): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () =>
+      typeof reader.result === 'string'
+        ? resolve(reader.result)
+        : reject(new Error('Could not read the selected image'))
+    reader.onerror = () => reject(new Error('Could not read the selected image'))
+    reader.readAsDataURL(file)
+  })
+
+  // Animated GIFs only survive as original data-URLs — pass reasonable ones through.
+  // Cap chosen so the base64-encoded result (~1.33x) stays under the server's 2MB limit;
+  // larger GIFs fall through to canvas compression (static frame) instead of being rejected.
+  if (file.type === 'image/gif' && file.size <= 1.4 * 1024 * 1024) return dataUrl
+
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('Unsupported image format'))
+      el.src = dataUrl
+    })
+    const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
+    // Already small enough at original quality/format — keep it (preserves PNG transparency)
+    if (scale >= 1 && file.size <= 500 * 1024) return dataUrl
+
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(img.width * scale))
+    canvas.height = Math.max(1, Math.round(img.height * scale))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return dataUrl
+    ctx.fillStyle = '#ffffff' // JPEG has no alpha — flatten transparency onto white
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/jpeg', quality)
+  } catch {
+    return dataUrl // best-effort fallback: send the original data-URL
+  }
+}
+
 type FormState = {
   name: string
   phone: string
@@ -126,44 +173,32 @@ export default function ProfilePage() {
     }
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (file.size > 500 * 1024) {
-      toast.error('Image must be smaller than 500KB')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const dataUrl = typeof reader.result === 'string' ? reader.result : null
-      if (!dataUrl) {
-        toast.error('Could not read the selected image')
-        return
+    setIsSaving(true)
+    try {
+      // No file-size limit — any image is accepted and auto-downscaled for storage
+      const dataUrl = await compressImage(file)
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, image: dataUrl }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const details = data?.details as Record<string, string[]> | undefined
+        const firstError = details ? Object.values(details)[0]?.[0] : undefined
+        throw new Error(firstError || data.error || 'Failed to update profile picture')
       }
-      setIsSaving(true)
-      try {
-        const res = await fetch('/api/dashboard/profile', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, image: dataUrl }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          const details = data?.details as Record<string, string[]> | undefined
-          const firstError = details ? Object.values(details)[0]?.[0] : undefined
-          throw new Error(firstError || data.error || 'Failed to update profile picture')
-        }
-        setProfile(data.user)
-        toast.success('Profile picture updated!')
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to update profile picture')
-      } finally {
-        setIsSaving(false)
-      }
+      setProfile(data.user)
+      toast.success('Profile picture updated!')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile picture')
+    } finally {
+      setIsSaving(false)
     }
-    reader.onerror = () => toast.error('Could not read the selected image')
-    reader.readAsDataURL(file)
   }
 
   if (isLoading) {

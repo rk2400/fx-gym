@@ -29,7 +29,7 @@ export const profileSchema = z.object({
   image: z
     .string()
     .trim()
-    .max(700_000, 'Image is too large')
+    .max(2_000_000, 'Image is too large')
     .refine(
       (val) =>
         !val ||
