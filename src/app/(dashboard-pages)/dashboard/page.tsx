@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 
 interface Membership {
   id: string
-  pricingPack: { name: string; price: number }
+  plan: { id: string; name: string; price: number; duration: number; description: string | null; features: string[] }
   status: string
   startDate: string
   endDate: string
@@ -236,7 +236,7 @@ export default function DashboardPage() {
                     <Dumbbell className="h-8 w-8 text-white" aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="font-heading text-xl font-bold text-gym-text">{membership.pricingPack.name}</p>
+                    <p className="font-heading text-xl font-bold text-gym-text">{membership.plan?.name || 'No Plan'}</p>
                     <p className="text-gym-text-muted">
                       {membership.status === 'ACTIVE' ? (
                         <>
