@@ -326,7 +326,7 @@ export default function ProfilePage() {
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gym-text-muted" aria-hidden="true" />
-                    <Input id="phone" type="tel" placeholder="+1 (555) 123-4567" className="pl-10" value={form.phone} onChange={(e) => setField('phone', e.target.value)} disabled={!isEditing || isSaving} />
+                    <Input id="phone" type="tel" inputMode="numeric" maxLength={10} placeholder="98765 43210" className="pl-10" value={form.phone} onChange={(e) => setField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} disabled={!isEditing || isSaving} />
                   </div>
                 </div>
 
