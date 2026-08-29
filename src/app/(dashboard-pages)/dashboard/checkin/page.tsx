@@ -38,6 +38,7 @@ interface CheckinRecord {
   date: string
   checkIn: string
   checkOut: string | null
+  checkedIn?: string // ISO timestamp from /api/dashboard/checkins — used to restore the live timer
   type?: string
   duration: number
   // distance?: number // Geolocation feature commented out for testing
@@ -159,18 +160,27 @@ export default function CheckinPage() {
   //   }
   // }, [gymLocation])
 
-  // Check if user is currently checked in
+  // Check if user is currently checked in (restores timer after navigating away and back)
+  // NOTE: history[].date is 'YYYY-MM-DD' (the API's format) — the long-format
+  // formatDate() from '@/lib/utils' NEVER matched it, which silently broke restore.
+  // Elapsed time is rebuilt from the ISO `checkedIn` timestamp, because the
+  // formatted 12-hour `checkIn` string ("07:45 PM") is not a parseable date.
   useEffect(() => {
-    const today = formatDate(new Date())
-    const todayCheckin = history.find(c => c.date === today && !c.checkOut)
+    if (isCheckedIn) return // fresh check-in this mount — local state is already authoritative
+    const today = new Date().toISOString().split('T')[0] // same format the API emits
+    const todayCheckin = history.find(c => c.date === today && !c.checkOut && c.checkedIn)
     if (todayCheckin) {
+      const checkedInIso = todayCheckin.checkedIn
+      if (!checkedInIso) return
+      const startedAt = new Date(checkedInIso)
+      if (isNaN(startedAt.getTime())) return
       setIsCheckedIn(true)
       setCheckInTime(todayCheckin.checkIn)
-      checkInTimestampRef.current = new Date(`${todayCheckin.date}T${todayCheckin.checkIn}`)
-      const elapsed = Math.floor((Date.now() - checkInTimestampRef.current.getTime()) / 1000)
-      setElapsedSeconds(elapsed > 0 ? elapsed : 0)
+      if (todayCheckin.type) setSelectedWorkout(todayCheckin.type)
+      checkInTimestampRef.current = startedAt
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 1000)))
     }
-  }, [history])
+  }, [history, isCheckedIn])
 
   const handleCheckIn = async () => {
     setIsLoading(true)
@@ -454,17 +464,17 @@ export default function CheckinPage() {
                     </span>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div className="p-4 rounded-xl bg-gym-bg">
-                    <p className="font-heading text-3xl font-bold text-gym-primary" id="duration-timer">{formatElapsedTime(elapsedSeconds)}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                  <div className="p-4 rounded-xl bg-gym-bg overflow-hidden">
+                    <p className="font-heading text-2xl sm:text-3xl font-bold text-gym-primary tabular-nums" id="duration-timer">{formatElapsedTime(elapsedSeconds)}</p>
                     <p className="text-xs text-gym-text-muted">Duration</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-gym-bg">
-                    <p className="font-heading text-3xl font-bold text-gym-text">{getWorkoutType(selectedWorkout).label}</p>
+                  <div className="p-4 rounded-xl bg-gym-bg overflow-hidden min-w-0">
+                    <p className="font-heading text-lg sm:text-xl font-bold text-gym-text truncate" title={getWorkoutType(selectedWorkout).label}>{getWorkoutType(selectedWorkout).label}</p>
                     <p className="text-xs text-gym-text-muted">Workout Type</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-gym-bg">
-                    <p className="font-heading text-3xl font-bold text-gym-text">{formatDate(new Date())}</p>
+                  <div className="p-4 rounded-xl bg-gym-bg overflow-hidden min-w-0">
+                    <p className="font-heading text-lg sm:text-xl font-bold text-gym-text truncate">{formatDate(new Date())}</p>
                     <p className="text-xs text-gym-text-muted">Today</p>
                   </div>
                 </div>

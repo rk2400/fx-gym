@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       checkOut: c.checkedOut?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) || null,
       checkedIn: c.checkedIn.toISOString(),
       checkedOut: c.checkedOut?.toISOString() || null,
-      type: 'strength',
+      type: c.type ?? 'strength',
       duration: c.checkedOut
         ? Math.round((c.checkedOut.getTime() - c.checkedIn.getTime()) / (1000 * 60))
         : 0,
