@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/
+// Indian numbers only: exactly 10 digits (e.g. 9876543210). No other validation.
+const phoneRegex = /^\d{10}$/
 
 export const profileSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),

@@ -363,7 +363,20 @@ export default function ProfilePage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="emergencyContactPhone">Contact Phone</Label>
-                    <Input id="emergencyContactPhone" type="tel" placeholder="+1 (555) 987-6543" value={form.emergencyContactPhone} onChange={(e) => setField('emergencyContactPhone', e.target.value)} disabled={!isEditing || isSaving} />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gym-text-muted" aria-hidden="true">+91</span>
+                      <Input
+                        id="emergencyContactPhone"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        placeholder="98765 43210"
+                        className="pl-12"
+                        value={form.emergencyContactPhone}
+                        onChange={(e) => setField('emergencyContactPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        disabled={!isEditing || isSaving}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { autoCloseStaleSessions } from '@/lib/checkin'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,11 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = (session.user as any).id
+
+    // Lazy auto-close: forgotten open sessions are capped at 60 minutes so
+    // history and streak calculations always see final, truthful entries.
+    await autoCloseStaleSessions(userId)
+
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
 

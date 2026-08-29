@@ -94,13 +94,24 @@ export default function CheckinPage() {
   //   }
   // }
 
+  // Maximum session length: 60 minutes. Mirrors the server-side auto-close so a
+  // forgotten session is capped, logged, and still counted in streaks.
+  const MAX_SESSION_SECONDS = 60 * 60
+  const autoStopRef = useRef(false)
+
   // Live elapsed-time timer — ticks every second while checked in
   useEffect(() => {
     if (isCheckedIn && checkInTimestampRef.current) {
+      autoStopRef.current = false
       timerRef.current = setInterval(() => {
         const now = new Date()
         const elapsed = Math.floor((now.getTime() - checkInTimestampRef.current!.getTime()) / 1000)
         setElapsedSeconds(elapsed)
+        // Auto-stop at the 60-minute cap — no dialog, the session closes itself
+        if (elapsed >= MAX_SESSION_SECONDS && !autoStopRef.current) {
+          autoStopRef.current = true
+          autoCheckout()
+        }
       }, 1000)
     }
 
@@ -249,6 +260,34 @@ export default function CheckinPage() {
       toast.error(error instanceof Error ? error.message : 'Check-out failed. Please try again.')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Auto-stop at the 60-minute cap: closes the session without the confirm dialog,
+  // mirroring the server's auto-close so the entry is kept and counted in streaks.
+  const autoCheckout = async () => {
+    try {
+      const res = await fetch('/api/checkin/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (res.ok) {
+        const updatedCheckin = await res.json()
+        setHistory(prev => prev.map(c =>
+          c.id === updatedCheckin.id ? updatedCheckin : c
+        ))
+        toast.info(`Auto checked out after 60 minutes • ${updatedCheckin.duration} min logged`)
+      } else {
+        // Server already auto-closed this session (60-min cap enforced server-side) — resync
+        fetchHistory()
+        toast.info('Session auto-closed after 60 minutes')
+      }
+      setIsCheckedIn(false)
+      setCheckInTime('')
+      checkInTimestampRef.current = null
+      setElapsedSeconds(0)
+    } catch (error) {
+      console.error('Auto check-out failed:', error)
     }
   }
 

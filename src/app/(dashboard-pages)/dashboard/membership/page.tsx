@@ -79,9 +79,17 @@ export default function MembershipPage() {
     )
   }
 
-  const daysRemaining = membership
-    ? Math.max(0, Math.ceil((new Date(membership.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0
+  // Calendar-days remaining, inclusive of the plan's last valid day.
+  // endDate counts as valid through the END of that day (23:59:59.999),
+  // so a plan ending today still shows 1 day remaining — not 0.
+  let daysRemaining = 0
+  if (membership) {
+    const end = new Date(membership.endDate)
+    end.setHours(23, 59, 59, 999)
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    daysRemaining = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">

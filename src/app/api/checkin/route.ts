@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { autoCloseStaleSessions } from '@/lib/checkin'
 // import { calculateDistance } from '@/lib/geolocation'
 
 export const dynamic = 'force-dynamic'
@@ -43,6 +44,10 @@ export async function POST(request: NextRequest) {
     //     }
     //   }
     // }
+
+    // Auto-close forgotten sessions that hit the 60-minute cap
+    // (keeps history and streak data truthful before creating a new entry)
+    await autoCloseStaleSessions(userId)
 
     // One check-in per day — enforced even after checking out
     const today = new Date()

@@ -28,9 +28,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(null)
     }
 
+    // A membership whose endDate has fully passed is reported as EXPIRED even
+    // if the DB status still says ACTIVE — keeps the UI in sync with reality.
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const effectiveStatus =
+      membership.status === 'ACTIVE' && membership.endDate < startOfToday
+        ? 'EXPIRED'
+        : membership.status
+
     return NextResponse.json({
       id: membership.id,
-      status: membership.status,
+      status: effectiveStatus,
       startDate: membership.startDate.toISOString(),
       endDate: membership.endDate.toISOString(),
       plan: {
