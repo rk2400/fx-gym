@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { normalizeIndianPhone } from '@/lib/validations/profile'
 
 interface ProfileData {
   id: string
@@ -105,11 +106,13 @@ const emptyForm: FormState = {
 function toForm(u: ProfileData): FormState {
   return {
     name: u.name ?? '',
-    phone: u.phone ?? '',
+    // Legacy rows may hold "+91 98765 43210" / "09876543210" — normalize so the
+    // form starts clean and a save never fails on pre-existing formatting.
+    phone: normalizeIndianPhone(u.phone),
     weightKg: u.weightKg != null ? String(u.weightKg) : '',
     heightCm: u.heightCm != null ? String(u.heightCm) : '',
     emergencyContactName: u.emergencyContactName ?? '',
-    emergencyContactPhone: u.emergencyContactPhone ?? '',
+    emergencyContactPhone: normalizeIndianPhone(u.emergencyContactPhone),
     address: u.address ?? '',
   }
 }
@@ -184,7 +187,8 @@ export default function ProfilePage() {
       const res = await fetch('/api/dashboard/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, image: dataUrl }),
+        // Image-only update: never drag the rest of the form (phone etc.) into validation
+        body: JSON.stringify({ image: dataUrl }),
       })
       const data = await res.json()
       if (!res.ok) {
