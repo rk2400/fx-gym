@@ -19,6 +19,7 @@ const profileSelect = {
   emergencyContactName: true,
   emergencyContactPhone: true,
   address: true,
+  image: true,
 } as const
 
 export async function GET() {
@@ -78,6 +79,8 @@ export async function PUT(request: NextRequest) {
         emergencyContactName: data.emergencyContactName || null,
         emergencyContactPhone: data.emergencyContactPhone || null,
         address: data.address || null,
+        // Absent → don't touch; null → clear; string → set
+        ...(data.image === undefined ? {} : { image: data.image || null }),
       },
       select: profileSelect,
     })

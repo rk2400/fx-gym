@@ -6,7 +6,6 @@ import { motion } from 'framer-motion'
 import {
   Mail,
   Phone,
-  Dumbbell,
   Camera,
   Loader2,
   User as UserIcon,
@@ -27,6 +26,7 @@ interface ProfileData {
   name: string | null
   memberId: string | null
   role: string
+  image: string | null
   phone: string | null
   weightKg: number | null
   heightCm: number | null
@@ -126,6 +126,46 @@ export default function ProfilePage() {
     }
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (file.size > 500 * 1024) {
+      toast.error('Image must be smaller than 500KB')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : null
+      if (!dataUrl) {
+        toast.error('Could not read the selected image')
+        return
+      }
+      setIsSaving(true)
+      try {
+        const res = await fetch('/api/dashboard/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...form, image: dataUrl }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          const details = data?.details as Record<string, string[]> | undefined
+          const firstError = details ? Object.values(details)[0]?.[0] : undefined
+          throw new Error(firstError || data.error || 'Failed to update profile picture')
+        }
+        setProfile(data.user)
+        toast.success('Profile picture updated!')
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to update profile picture')
+      } finally {
+        setIsSaving(false)
+      }
+    }
+    reader.onerror = () => toast.error('Could not read the selected image')
+    reader.readAsDataURL(file)
+  }
+
   if (isLoading) {
     return (
       <div className="max-w-2xl mx-auto flex items-center justify-center py-24">
@@ -153,14 +193,37 @@ export default function ProfilePage() {
         <Card className="bg-gym-surface border-gym-border">
           <CardHeader className="flex flex-row items-center">
             <div className="relative">
-              <div className="h-24 w-24 rounded-full bg-gradient-to-br from-gym-primary to-gym-secondary flex items-center justify-center font-heading text-3xl font-bold text-white">
-                {(profile?.name || session?.user?.name)?.charAt(0).toUpperCase() || 'U'}
-              </div>
-              {isEditing && (
-                <label className="absolute bottom-0 right-0 p-2 rounded-full bg-gym-primary text-white hover:bg-gym-primary-dim transition-colors cursor-pointer">
+              {profile?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.image}
+                  alt={profile?.name || 'Profile'}
+                  className="h-24 w-24 rounded-full object-cover border-2 border-gym-primary/40"
+                />
+              ) : (
+                <div className="h-24 w-24 rounded-full bg-gradient-to-br from-gym-primary to-gym-secondary flex items-center justify-center font-heading text-3xl font-bold text-white">
+                  {(profile?.name || session?.user?.name)?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              )}
+              {(
+                <label
+                  className="absolute bottom-0 right-0 p-2 rounded-full bg-gym-primary text-white hover:bg-gym-primary-dim transition-colors cursor-pointer"
+                  title="Change profile picture"
+                >
                   <Camera className="h-5 w-5" />
-                  <input type="file" className="sr-only" accept="image/*" />
+                  <input
+                    type="file"
+                    className="sr-only"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleImageChange}
+                    disabled={isSaving}
+                  />
                 </label>
+              )}
+              {isSaving && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" aria-label="Uploading" />
+                </div>
               )}
             </div>
             <div className="ml-6 flex-1">
@@ -296,38 +359,6 @@ export default function ProfilePage() {
                 </div>
               )}
             </form>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <Card className="bg-gym-surface border-gym-border">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Dumbbell className="h-5 w-5 text-gym-primary" aria-hidden="true" />
-              <span>Preferences</span>
-            </CardTitle>
-            <CardDescription>Manage your notification settings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              { title: 'Email Notifications', desc: 'Receive workout reminders and updates' },
-              { title: 'Push Notifications', desc: 'Get notified on your device' },
-              { title: 'Weekly Progress Report', desc: 'Receive a summary every Monday' },
-            ].map((pref) => (
-              <div key={pref.title} className="flex items-center justify-between py-3 border-b border-gym-border last:border-b-0">
-                <div>
-                  <p className="font-medium text-gym-text">{pref.title}</p>
-                  <p className="text-sm text-gym-text-muted">{pref.desc}</p>
-                </div>
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="h-5 w-5 rounded border-gym-border bg-gym-surface text-gym-primary focus:ring-gym-primary"
-                  aria-label={pref.title}
-                />
-              </div>
-            ))}
           </CardContent>
         </Card>
       </motion.div>

@@ -464,16 +464,21 @@ export default function CheckinPage() {
                     </span>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                  <div className="p-4 rounded-xl bg-gym-bg overflow-hidden">
-                    <p className="font-heading text-2xl sm:text-3xl font-bold text-gym-primary tabular-nums" id="duration-timer">{formatElapsedTime(elapsedSeconds)}</p>
-                    <p className="text-xs text-gym-text-muted">Duration</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-gym-bg overflow-hidden min-w-0">
+                <div className="p-5 rounded-xl bg-gym-bg text-center">
+                  <p
+                    className="font-heading font-bold text-gym-primary tabular-nums whitespace-nowrap leading-tight text-[clamp(2rem,9vw,3.5rem)]"
+                    id="duration-timer"
+                  >
+                    {formatElapsedTime(elapsedSeconds)}
+                  </p>
+                  <p className="text-xs text-gym-text-muted mt-1">Duration</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="p-4 rounded-xl bg-gym-bg min-w-0">
                     <p className="font-heading text-lg sm:text-xl font-bold text-gym-text truncate" title={getWorkoutType(selectedWorkout).label}>{getWorkoutType(selectedWorkout).label}</p>
                     <p className="text-xs text-gym-text-muted">Workout Type</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-gym-bg overflow-hidden min-w-0">
+                  <div className="p-4 rounded-xl bg-gym-bg min-w-0">
                     <p className="font-heading text-lg sm:text-xl font-bold text-gym-text truncate">{formatDate(new Date())}</p>
                     <p className="text-xs text-gym-text-muted">Today</p>
                   </div>

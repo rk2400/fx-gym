@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     //   }
     // }
 
-    // Check if already checked in today (one check-in per day)
+    // One check-in per day — enforced even after checking out
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const tomorrow = new Date(today)
@@ -56,8 +56,7 @@ export async function POST(request: NextRequest) {
         checkedIn: {
           gte: today,
           lt: tomorrow
-        },
-        checkedOut: null
+        }
       }
     })
 

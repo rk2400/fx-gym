@@ -26,6 +26,19 @@ export const profileSchema = z.object({
     .nullable()
     .refine((val) => !val || phoneRegex.test(val), 'Invalid phone number'),
   address: z.string().trim().max(500).optional().nullable(),
+  image: z
+    .string()
+    .trim()
+    .max(700_000, 'Image is too large')
+    .refine(
+      (val) =>
+        !val ||
+        /^https?:\/\//.test(val) ||
+        /^data:image\/(png|jpe?g|webp|gif);base64,/.test(val),
+      'Image must be a URL or a base64-encoded image'
+    )
+    .optional()
+    .nullable(),
 })
 
 export type ProfileInput = z.infer<typeof profileSchema>

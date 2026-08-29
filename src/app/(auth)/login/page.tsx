@@ -23,9 +23,12 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [step, setStep] = useState<'login' | 'otp'>('login')
+  const [step, setStep] = useState<'login' | 'otp' | 'otp-request'>('login')
   const [otpEmail, setOtpEmail] = useState('')
   const [otpCode, setOtpCode] = useState('')
+  const [isOtpLogin, setIsOtpLogin] = useState(false)
+  const [otpRequestEmail, setOtpRequestEmail] = useState('')
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
 
   const {
     register,
@@ -89,7 +92,7 @@ function LoginForm() {
         return
       }
 
-      toast.success('Email verified! Welcome to FX Gym!')
+      toast.success(isOtpLogin ? 'Welcome back!' : 'Email verified! Welcome to FX Gym!')
 
       // Route each role to its own dashboard (admins -> /admin, trainers -> /trainer)
       const otpSession = await getSession()
@@ -117,6 +120,94 @@ function LoginForm() {
     }
   }
 
+  const sendLoginOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!otpRequestEmail) return
+    setIsSendingOtp(true)
+    try {
+      const res = await fetch('/api/auth/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpRequestEmail, type: 'EMAIL_VERIFICATION' }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to send sign-in code')
+      }
+      setOtpEmail(otpRequestEmail)
+      setIsOtpLogin(true)
+      setOtpCode('')
+      setStep('otp')
+      toast.success('Sign-in code sent to your email')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to send sign-in code')
+    } finally {
+      setIsSendingOtp(false)
+    }
+  }
+
+  if (step === 'otp-request') {
+    return (
+      <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden flex items-center justify-center py-12 px-4">
+        <AmbientBackground />
+        <Card className="relative w-full max-w-md">
+          <CardHeader className="text-center">
+            <Link href="/" className="inline-flex items-center space-x-2 mb-6">
+              <Dumbbell className="h-8 w-8 text-gym-primary" aria-hidden="true" />
+              <span className="font-heading text-xl font-bold text-gym-text">FX Gym</span>
+            </Link>
+            <CardTitle className="text-2xl">Sign in with OTP</CardTitle>
+            <CardDescription>
+              Enter your account email and we&apos;ll send you a 6-digit sign-in code
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={sendLoginOtp} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="otp-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gym-text-muted" aria-hidden="true" />
+                  <Input
+                    id="otp-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    className="pl-10"
+                    value={otpRequestEmail}
+                    onChange={(e) => setOtpRequestEmail(e.target.value)}
+                    autoComplete="email"
+                    required
+                    disabled={isSendingOtp}
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isSendingOtp || !otpRequestEmail}>
+                {isSendingOtp ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    Sending code...
+                  </>
+                ) : (
+                  'Email me a sign-in code'
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => setStep('login')}
+                className="text-sm text-gym-text-muted hover:text-gym-text underline"
+              >
+                Back to password sign-in
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   if (step === 'otp') {
     return (
       <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden flex items-center justify-center py-12 px-4">
@@ -127,7 +218,7 @@ function LoginForm() {
               <Dumbbell className="h-8 w-8 text-gym-primary" aria-hidden="true" />
               <span className="font-heading text-xl font-bold text-gym-text">FX Gym</span>
             </Link>
-            <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+            <CardTitle className="text-2xl">{isOtpLogin ? 'Enter Sign-In Code' : 'Verify Your Email'}</CardTitle>
             <CardDescription>Enter the 6-digit code sent to <strong>{otpEmail}</strong></CardDescription>
           </CardHeader>
           <CardContent>
@@ -155,7 +246,7 @@ function LoginForm() {
                     Verifying...
                   </>
                 ) : (
-                  'Verify Email'
+                  isOtpLogin ? 'Sign In' : 'Verify Email'
                 )}
               </Button>
             </form>
@@ -168,7 +259,7 @@ function LoginForm() {
                 Didn't receive it? Check your spam folder or{' '}
                 <button
                   type="button"
-                  onClick={() => { setStep('login'); reset(); }}
+                  onClick={() => { setStep('login'); setIsOtpLogin(false); reset(); }}
                   className="text-gym-primary hover:text-gym-primary-dim underline"
                 >
                   go back
@@ -272,6 +363,19 @@ function LoginForm() {
               )}
             </Button>
           </form>
+
+          <div className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => { setOtpRequestEmail(''); setStep('otp-request') }}
+              disabled={isLoading}
+            >
+              <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
+              Sign in with OTP
+            </Button>
+          </div>
 
           <p className="mt-6 text-center text-sm text-gym-text-muted">
             New to FX Gym? Contact admin to create your account.
