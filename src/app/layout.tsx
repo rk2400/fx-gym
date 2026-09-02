@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
 import { Providers } from './providers'
-import { Toaster } from 'sonner'
+import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
 const inter = Inter({
@@ -68,7 +68,7 @@ export default function RootLayout({
       {/* Fonts are self-hosted via next/font – no external font requests or preconnects needed. */}
       <body className="min-h-screen bg-gym-bg font-sans antialiased">
         <Providers>
-          <Toaster position="top-right" theme="dark" className="bg-gym-surface border-gym-border" />
+          <Toaster />
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50 px-4 py-2 bg-gym-primary text-gym-bg rounded-md"

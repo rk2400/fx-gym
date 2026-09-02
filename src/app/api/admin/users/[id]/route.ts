@@ -25,6 +25,13 @@ export async function GET(
         id: true,
         email: true,
         name: true,
+        image: true,
+        phone: true,
+        weightKg: true,
+        heightCm: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
+        address: true,
         role: true,
         memberId: true,
         emailVerified: true,
@@ -36,11 +43,12 @@ export async function GET(
           select: { id: true, name: true, email: true }
         },
         memberships: {
-          include: { pricingPack: true }
+          include: { pricingPack: true },
+          orderBy: { startDate: 'desc' }
         },
         checkins: {
           orderBy: { checkedIn: 'desc' },
-          take: 10
+          take: 20
         },
         _count: {
           select: { memberships: true, checkins: true }

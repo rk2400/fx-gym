@@ -6,12 +6,6 @@ import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { AmbientBackground } from '@/components/visuals'
 
-const features = [
-  { icon: Zap, title: 'High-Intensity Training', description: 'Push your limits with our signature HIIT programs designed for maximum results in minimum time.' },
-  { icon: Flame, title: 'Fat Burning Workouts', description: 'Scientifically-backed routines that torch calories and boost metabolism long after you leave.' },
-  { icon: Target, title: 'Personalized Programs', description: 'Custom training plans tailored to your goals, fitness level, and schedule by certified trainers.' },
-]
-
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden section pt-32 lg:pt-48" aria-labelledby="hero-heading">
@@ -115,39 +109,13 @@ export function HeroSection() {
                     <Zap className="h-6 w-6 text-gym-secondary" aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gym-text">45</p>
+                    <p className="text-2xl font-bold text-gym-text">55</p>
                     <p className="text-sm text-gym-text-muted">Min Average Workout</p>
                   </div>
                 </div>
               </div>
           </motion.div>
         </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-          className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6"
-          role="list"
-          aria-label="Key features"
-        >
-          {features.map((feature, index) => (
-            <motion.article
-              key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
-              className="group p-6 rounded-2xl bg-gym-surface border border-gym-border hover:border-gym-primary/50 hover:shadow-neon-primary/20 transition-all duration-300"
-              role="listitem"
-            >
-              <div className="mb-4 p-3 rounded-xl bg-gym-primary/10 group-hover:bg-gym-primary/20 transition-colors">
-                <feature.icon className="h-6 w-6 text-gym-primary" aria-hidden="true" />
-              </div>
-              <h3 className="heading-4 text-gym-text mb-2">{feature.title}</h3>
-              <p className="text-sm text-gym-text-muted">{feature.description}</p>
-            </motion.article>
-          ))}
-        </motion.div>
       </div>
     </section>
   )

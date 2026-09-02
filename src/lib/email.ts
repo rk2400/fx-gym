@@ -77,6 +77,45 @@ function getTransporter(): nodemailer.Transporter | null {
   );
 })();
 
+export interface OtpBoxOptions {
+  width?: number;
+  height?: number;
+  fontSize?: number;
+  borderColor?: string;
+  textColor?: string;
+}
+
+/**
+ * Renders a code as individual boxes that stay centred in every email client.
+ * Gmail + Outlook strip/ignore `display:flex`, `gap` and `align-items` — so we
+ * use `display:inline-block` with `line-height` (vertical centring) and
+ * `text-align:center` (horizontal centring), spaced with plain margins.
+ */
+export function otpBoxesHtml(code: string, opts: OtpBoxOptions = {}): string {
+  const { width = 52, height = 60, fontSize = 28, borderColor = '#00ff88', textColor = '#00ff88' } = opts;
+  const boxStyle = [
+    'display:inline-block',
+    `width:${width}px`,
+    `height:${height}px`,
+    `line-height:${height}px`,
+    'text-align:center',
+    'vertical-align:middle',
+    'background:#1a1a2e',
+    `border:2px solid ${borderColor}`,
+    'border-radius:12px',
+    `font-size:${fontSize}px`,
+    'font-weight:700',
+    `color:${textColor}`,
+    'font-family:Consolas,Menlo,monospace',
+    `margin:0 5px`,
+    'box-shadow:0 0 12px rgba(0,255,136,0.25)',
+    ].join(';');
+  return code
+    .split('')
+    .map((d) => `<span style="${boxStyle}">${d}</span>`)
+    .join('');
+}
+
 export const emailService = {
   async sendEmail({
     to,
@@ -144,7 +183,6 @@ export const emailService = {
     code: string,
     subject = 'Your FX Gym Login OTP'
   ): Promise<boolean> {
-    const digits = code.split('');
     const html = `
       <!DOCTYPE html>
       <html>
@@ -154,14 +192,9 @@ export const emailService = {
               <span style="font-size: 32px;">🔐</span>
             </div>
             <h1 style="color: #f0f0f5; margin: 0 0 16px;">${subject}</h1>
-            <p style="color: #888899; margin: 0 0 24px;">Enter this code to continue:</p>
-            <div style="display: inline-flex; gap: 8px; justify-content: center; margin-bottom: 24px;">
-              ${digits
-                .map(
-                  (d) =>
-                    `<span style="width: 48px; height: 56px; background: #0a0a0f; border: 2px solid #00ff88; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: #00ff88; font-family: monospace;">${d}</span>`
-                )
-                .join('')}
+            <p style="color: #888899; margin: 0 0 28px;">Enter this code to continue:</p>
+            <div style="text-align:center; margin: 0 0 28px;">
+              ${otpBoxesHtml(code)}
             </div>
             <p style="color: #ffaa00; font-size: 13px; margin: 0;">Code expires in 15 minutes</p>
             <p style="color: #555566; font-size: 12px; margin: 24px 0 0;">If you didn't request this code, you can safely ignore this email.</p>
@@ -169,7 +202,8 @@ export const emailService = {
         </body>
       </html>
     `;
-    return this.sendEmail({ to: email, subject, html });
+    const text = `${subject}\n\nEnter this code to continue: ${code}\n\nCode expires in 15 minutes.`;
+    return this.sendEmail({ to: email, subject, html, text });
   },
 };
 
@@ -182,14 +216,6 @@ export function generateMemberId(): string {
   const timestamp = Date.now().toString(36).toUpperCase();
   const random = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `${prefix}-${timestamp}-${random}`;
-}
-
-export interface WelcomeMembershipInfo {
-  planName: string;
-  price: number;
-  durationDays: number;
-  startDate: Date;
-  endDate: Date;
 }
 
 export interface ContactNotificationData {
@@ -295,13 +321,7 @@ export function getWelcomeEmail(
   tempPassword: string,
   membershipInfo: WelcomeMembershipInfo | null
 ): EmailTemplateResult {
-  const digits = tempPassword.split('');
-  const passwordBoxes = digits
-    .map(
-      (d) =>
-        `<span style="width: 40px; height: 50px; background: #0a0a0f; border: 2px solid #00ff88; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #00ff88; font-family: monospace; margin: 0 3px;">${d}</span>`
-    )
-    .join('');
+  const passwordBoxes = otpBoxesHtml(tempPassword, { width: 40, height: 50, fontSize: 20 });
 
   const membershipHtml = membershipInfo
     ? `
@@ -331,7 +351,7 @@ export function getWelcomeEmail(
             <p style="color: #888899; font-size: 13px; margin: 0 0 6px;">Login Email</p>
             <p style="color: #f0f0f5; font-size: 16px; margin: 0 0 18px;">${escapeHtml(email)}</p>
             <p style="color: #888899; font-size: 13px; margin: 0 0 10px;">Starter Password (also works as your verification OTP)</p>
-            <div>${passwordBoxes}</div>
+            <div style="text-align:center; margin: 0 0 8px;">${passwordBoxes}</div>
           </div>
           ${membershipHtml}
           <p style="color: #555566; font-size: 12px; margin: 24px 0 0;">Log in with this password and change it after your first sign-in.</p>
@@ -388,4 +408,86 @@ export function getRoleChangeEmail(
   `;
   const text = `Hi ${name}, your FX Gym account role changed from ${oldRole} to ${newRole}. Member ID: ${memberId}`;
   return { subject: 'Your FX Gym Role Has Been Updated', html, text };
+}
+
+export interface FirstLoginTrainerInfo {
+  name: string | null;
+  email: string | null;
+}
+
+/**
+ * Sent on the user's FIRST successful sign-in. Carries the live membership and
+ * assigned trainer pickups so the welcome message always reflects the latest
+ * plan / trainer setup (which an admin may have adjusted after enrollment).
+ */
+export function getFirstLoginWelcomeEmail(
+  name: string,
+  memberId: string,
+  email: string,
+  membershipInfo: WelcomeMembershipInfo | null,
+  trainerInfo: FirstLoginTrainerInfo | null
+): EmailTemplateResult {
+  const membershipHtml = membershipInfo
+    ? `
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,136,0.35); border-radius: 12px; padding: 16px; margin: 20px 0 0; text-align: left;">
+        <p style="color: #ffaa00; font-size: 12px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Your Membership</p>
+        <table style="width: 100%; font-size: 14px; color: #f0f0f5;">
+          <tr><td style="padding: 4px 0; color: #888899;">Plan</td><td style="padding: 4px 0; text-align: right; font-weight: 600; color: #00ff88;">${escapeHtml(membershipInfo.planName)}</td></tr>
+          <tr><td style="padding: 4px 0; color: #888899;">Price</td><td style="padding: 4px 0; text-align: right; font-weight: 600;">₹${membershipInfo.price.toFixed(2)}</td></tr>
+          <tr><td style="padding: 4px 0; color: #888899;">Duration</td><td style="padding: 4px 0; text-align: right; font-weight: 600;">${membershipInfo.durationDays} days</td></tr>
+          <tr><td style="padding: 4px 0; color: #888899;">Valid</td><td style="padding: 4px 0; text-align: right; font-weight: 600;">${formatDate(membershipInfo.startDate)} – ${formatDate(membershipInfo.endDate)}</td></tr>
+        </table>
+      </div>
+    `
+    : '';
+
+  const trainerHtml = trainerInfo
+    ? `
+      <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(0,150,255,0.35); border-radius: 12px; padding: 16px; margin: 12px 0 0; text-align: left;">
+        <p style="color: #ffaa00; font-size: 12px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Your Trainer</p>
+        <p style="margin: 0; font-weight: 600; color: #f0f0f5;">${escapeHtml(trainerInfo.name || 'Your trainer')}</p>
+        ${trainerInfo.email ? `<p style="margin: 2px 0 0; color: #888899; font-size: 13px;">${escapeHtml(trainerInfo.email)}</p>` : ''}
+      </div>
+    `
+    : '';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a2e; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #0a0a0f 0%, #12121a 100%); border-radius: 16px; padding: 40px; color: #f0f0f5; text-align: center;">
+          <div style="margin-bottom: 24px;"><span style="font-size: 32px;">🏋️</span></div>
+          <h1 style="color: #f0f0f5; margin: 0 0 16px;">Welcome to FX Gym, ${escapeHtml(name)}!</h1>
+          <p style="color: #888899; margin: 0 0 20px; ">It's great to have you on board. Here's everything you need for your first session:</p>
+          <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin: 0;">
+            <p style="color: #888899; font-size: 12px; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 1px;">Member ID</p>
+            <p style="color: #ffaa00; font-size: 18px; font-weight: 700; margin: 0; letter-spacing: 1px;">${escapeHtml(memberId)}</p>
+          </div>
+          ${membershipHtml}
+          ${trainerHtml}
+          <p style="color: #555566; font-size: 12px; margin: 24px 0 0;">Questions? Reply to this email or reach out to the gym front desk.</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const text = [
+    `Welcome to FX Gym, ${name}!`,
+    ``,
+    `Member ID: ${memberId}`,
+    `Login Email: ${email}`,
+    ...(membershipInfo
+      ? [
+          ``,
+          `Membership: ${membershipInfo.planName}`,
+          `Price: ₹${membershipInfo.price.toFixed(2)} (${membershipInfo.durationDays} days)`,
+          `Valid: ${formatDate(membershipInfo.startDate)} - ${formatDate(membershipInfo.endDate)}`,
+        ]
+      : []),
+    ...(trainerInfo?.name
+      ? [``, `Trainer: ${trainerInfo.name}${trainerInfo.email ? ` (${trainerInfo.email})` : ''}`]
+      : []),
+  ].join('\n');
+
+  return { subject: `Welcome to FX Gym, ${name}!`, html, text };
 }

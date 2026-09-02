@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { Menu, X, Dumbbell, LayoutDashboard, User, LogOut } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
@@ -21,6 +21,14 @@ export function Header() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Deactivated accounts are signed out everywhere the moment the session
+  // revalidation (jwt callback in src/lib/auth.ts) reports the account inactive.
+  useEffect(() => {
+    if (status === 'authenticated' && (session?.user as any)?.isActive === false) {
+      signOut({ callbackUrl: '/' })
+    }
+  }, [status, session])
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gym-bg/95 backdrop-blur-md border-b border-gym-border">

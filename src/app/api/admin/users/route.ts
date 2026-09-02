@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { generateMemberId, generateOTP, emailService, getWelcomeEmail } from '@/lib/email'
+import { normalizeIndianPhone } from '@/lib/validations/profile'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,11 +118,24 @@ export async function POST(request: NextRequest) {
       membershipId: z.string().optional().nullable(),
       assignedTrainerId: z.string().optional().nullable(),
       // Optional profile details (same fields as the user profile page)
-      phone: z.string().trim().optional().nullable(),
+      // Indian phone numbers only — stored as bare 10 digits like the profile page.
+      phone: z
+        .string()
+        .trim()
+        .optional()
+        .nullable()
+        .transform((val) => (val ? normalizeIndianPhone(val) || null : null))
+        .refine((val) => val == null || /^\d{10}$/.test(val), 'Enter a valid 10-digit phone number'),
       weightKg: z.coerce.number().positive().max(500).optional().nullable(),
       heightCm: z.coerce.number().positive().max(300).optional().nullable(),
       emergencyContactName: z.string().trim().max(100).optional().nullable(),
-      emergencyContactPhone: z.string().trim().optional().nullable(),
+      emergencyContactPhone: z
+        .string()
+        .trim()
+        .optional()
+        .nullable()
+        .transform((val) => (val ? normalizeIndianPhone(val) || null : null))
+        .refine((val) => val == null || /^\d{10}$/.test(val), 'Enter a valid 10-digit emergency contact phone number'),
       address: z.string().trim().max(500).optional().nullable(),
     })
 

@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { signOut } from 'next-auth/react'
 import {
   Dumbbell, User, Users, CreditCard, Clock, Flame, LogOut, Menu, X,
-  Calendar, BarChart3, Settings, Shield, UserCog,
+  Calendar, BarChart3, Settings, Shield, UserCog, Tag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -24,6 +24,7 @@ const memberNavItems = [
 const adminNavItems = [
   { label: 'Overview', href: '/admin', icon: BarChart3 },
   { label: 'Users', href: '/admin/users', icon: Users },
+  { label: 'Membership Plans', href: '/admin/pricing', icon: Tag },
   { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ]
@@ -53,6 +54,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [status, router])
 
+  // A deactivated account is signed out from every device automatically: the
+  // jwt callback in src/lib/auth.ts revalidates isActive on each session poll,
+  // marks the token inactive, and this effect ends the local session.
+  useEffect(() => {
+    if (status === 'authenticated' && (session?.user as any)?.isActive === false) {
+      signOut({ callbackUrl: '/' })
+    }
+  }, [status, session, router])
+
   const role = (session?.user as any)?.role as string | undefined
 
   // Keep every role inside its own dashboard section
@@ -66,7 +76,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gym-bg">
-        <div className="animate-pulse flex h-8 w-8 text-gym-primary" />
+        <div className="flex flex-col items-center space-y-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-gym-primary" />
+          <p className="text-sm text-gym-text-muted">Loading your dashboard…</p>
+        </div>
       </div>
     )
   }

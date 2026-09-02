@@ -85,6 +85,8 @@ export default function NewUserPage() {
     const e: Record<string, string> = {}
     if (form.name.trim().length < 2) e.name = 'Name must be at least 2 characters'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = 'Enter a valid email address'
+    if (form.phone && !/^\d{10}$/.test(form.phone)) e.phone = 'Enter a valid 10-digit phone number'
+    if (form.emergencyContactPhone && !/^\d{10}$/.test(form.emergencyContactPhone)) e.emergencyContactPhone = 'Enter a valid 10-digit phone number'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -300,7 +302,20 @@ export default function NewUserPage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input id="phone" type="tel" placeholder="+1 (555) 123-4567" value={form.phone} onChange={(e) => update('phone', e.target.value)} />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gym-text-muted" aria-hidden="true">+91</span>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
+                          placeholder="98765 43210"
+                          className="pl-12"
+                          value={form.phone}
+                          onChange={(e) => update('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        />
+                      </div>
+                      {errors.phone && <p className="text-sm text-gym-accent" role="alert">{errors.phone}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="address">Address</Label>
@@ -320,7 +335,20 @@ export default function NewUserPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="emergencyContactPhone">Emergency Contact Phone</Label>
-                      <Input id="emergencyContactPhone" type="tel" placeholder="+1 (555) 987-6543" value={form.emergencyContactPhone} onChange={(e) => update('emergencyContactPhone', e.target.value)} />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gym-text-muted" aria-hidden="true">+91</span>
+                        <Input
+                          id="emergencyContactPhone"
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
+                          placeholder="98765 43210"
+                          className="pl-12"
+                          value={form.emergencyContactPhone}
+                          onChange={(e) => update('emergencyContactPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        />
+                      </div>
+                      {errors.emergencyContactPhone && <p className="text-sm text-gym-accent" role="alert">{errors.emergencyContactPhone}</p>}
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-gym-text-muted">

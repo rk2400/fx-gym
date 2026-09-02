@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { normalizeIndianPhone } from '@/lib/validations/profile'
 
@@ -124,6 +125,8 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
+  const [deactivating, setDeactivating] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -202,6 +205,23 @@ export default function ProfilePage() {
       toast.error(error instanceof Error ? error.message : 'Failed to update profile picture')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleDeactivate = async () => {
+    if (deactivating) return
+    setDeactivating(true)
+    try {
+      const res = await fetch('/api/dashboard/profile/deactivate', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to deactivate account')
+      toast.success('Your account has been deactivated. You are now signed out.')
+      // The session invalidation in auth.ts marks the token inactive elsewhere too,
+      // and signing out here finishes the local session immediately.
+      await signOut({ callbackUrl: '/' })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to deactivate account')
+      setDeactivating(false)
     }
   }
 
@@ -414,6 +434,51 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Deactivate account */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <Card className="bg-gym-surface border-gym-accent/30">
+          <CardHeader>
+            <CardTitle className="text-gym-accent">Deactivate Account</CardTitle>
+            <CardDescription>
+              Deactivating signs you out from every device immediately. You will not be able to sign
+              back in until a gym admin reactivates your account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="destructive" onClick={() => setShowDeactivateDialog(true)} disabled={deactivating}>
+              {deactivating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Deactivate my account
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <Dialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
+        <DialogContent className="bg-gym-surface border-gym-border max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deactivate your account?</DialogTitle>
+            <DialogDescription>
+              This will immediately log you out of FX Gym on all of your devices. Only a gym admin
+              can reactivate your account afterwards.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+            <Button variant="outline" onClick={() => setShowDeactivateDialog(false)} disabled={deactivating}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeactivate}
+              disabled={deactivating}
+              className="bg-gym-accent hover:bg-red-600"
+            >
+              {deactivating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Yes, deactivate
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

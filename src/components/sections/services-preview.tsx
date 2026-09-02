@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { ArrowRight, Dumbbell, HeartPulse, Users, Zap, Flame, Target } from 'lucide-react'
@@ -12,6 +13,7 @@ const services = [
     description: 'Build muscle and power with our comprehensive strength programs using free machines, cables, and free weights.',
     features: ['Progressive Overload', 'Form Coaching', 'Periodized Programs', 'Strength Testing'],
     color: 'from-gym-primary to-green-600',
+    image: '/Images/strength.png',
   },
   {
     icon: HeartPulse,
@@ -19,6 +21,7 @@ const services = [
     description: 'Burn fat and improve endurance with high-intensity interval training and steady-state cardio options.',
     features: ['HIIT Classes', 'Treadmill Intervals', 'Rowing Circuits', 'Heart Rate Monitoring'],
     color: 'from-red-500 to-gym-accent',
+    image: '/Images/Cardio.png',
   },
   {
     icon: Users,
@@ -26,6 +29,7 @@ const services = [
     description: 'Energizing group classes led by certified instructors. From yoga to bootcamp, find your tribe.',
     features: ['Yoga & Pilates', 'Spin Classes', 'Bootcamp', 'Dance Fitness'],
     color: 'from-gym-secondary to-blue-600',
+    image: '/Images/group.png',
   },
   {
     icon: Zap,
@@ -33,6 +37,7 @@ const services = [
     description: 'One-on-one coaching tailored to your goals. Custom nutrition plans and accountability included.',
     features: ['Custom Programs', 'Nutrition Guidance', 'Weekly Check-ins', 'Progress Tracking'],
     color: 'from-purple-500 to-gym-secondary',
+    image: '/Images/personal.png',
   },
   {
     icon: Flame,
@@ -40,6 +45,7 @@ const services = [
     description: 'Improve real-world movement patterns with kettlebells, battle ropes, sleds, and bodyweight exercises.',
     features: ['Kettlebell Flows', 'Battle Ropes', 'Sled Push/Pull', 'Mobility Work'],
     color: 'from-orange-500 to-red-500',
+    image: '/Images/functional.png',
   },
   {
     icon: Target,
@@ -47,6 +53,7 @@ const services = [
     description: 'Athlete-focused training for speed, agility, power, and injury prevention. Youth to pro level.',
     features: ['Speed & Agility', 'Plyometrics', 'Injury Prevention', 'Combine Prep'],
     color: 'from-gym-primary to-gym-secondary',
+    image: '/Images/sports.png',
   },
 ]
 
@@ -104,8 +111,23 @@ export function ServicesPreviewSection() {
                 className="absolute inset-0 bg-gradient-to-br from-transparent via-gym-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                 aria-hidden="true"
               />
-              <div className={`relative mb-4 p-3 rounded-xl bg-gradient-to-br ${service.color} text-gym-bg`}>
-                <service.icon className="h-7 w-7" aria-hidden="true" />
+              <div className="relative z-10 mb-5 h-44 overflow-hidden rounded-xl border border-gym-border">
+                <Image
+                  src={service.image}
+                  alt={`${service.title} - FX Gym`}
+                  fill
+                  sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+                <div
+                  className="absolute inset-0 bg-gradient-to-t from-gym-bg/90 via-gym-bg/20 to-transparent"
+                  aria-hidden="true"
+                />
+                <div
+                  className={`absolute bottom-3 left-3 p-2.5 rounded-xl bg-gradient-to-br ${service.color} text-gym-bg shadow-lg`}
+                >
+                  <service.icon className="h-6 w-6" aria-hidden="true" />
+                </div>
               </div>
               <h3 className="heading-4 text-gym-text mb-2 relative z-10">{service.title}</h3>
               <p className="text-sm text-gym-text-muted mb-4 relative z-10">{service.description}</p>

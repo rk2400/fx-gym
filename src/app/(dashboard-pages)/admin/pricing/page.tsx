@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Tag, Loader2, Plus, Power, Save, X } from 'lucide-react'
+import { Tag, Loader2, Plus, Power, Save, X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,6 +29,59 @@ function toDraft(p: AdminPack): DraftState {
     name: p.name, description: p.description ?? '', price: String(p.price), duration: String(p.duration),
     features: (p.features || []).join('\n'), isPopular: p.isPopular, isActive: p.isActive, sortOrder: String(p.sortOrder),
   }
+}
+
+// Module-level form fields — MUST live outside the page component.
+// If defined inline, every keystroke re-creates the component type and React
+// remounts the inputs, which makes the cursor jump out of the field.
+function PackFields({ d, onPatch }: { d: DraftState; onPatch: (patch: Partial<DraftState>) => void }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Plan name</Label>
+          <Input value={d.name} onChange={(e) => onPatch({ name: e.target.value })} placeholder="Monthly Membership" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Price (Rs)</Label>
+            <Input type="number" min="0" value={d.price} onChange={(e) => onPatch({ price: e.target.value })} placeholder="3000" />
+          </div>
+          <div className="space-y-2">
+            <Label>Duration (days)</Label>
+            <Input type="number" min="1" value={d.duration} onChange={(e) => onPatch({ duration: e.target.value })} placeholder="30" />
+          </div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>Description</Label>
+        <Input value={d.description} onChange={(e) => onPatch({ description: e.target.value })} placeholder="Short marketing line shown under the plan" />
+      </div>
+      <div className="space-y-2">
+        <Label>Features (one per line)</Label>
+        <textarea
+          className="input-field min-h-[100px]"
+          value={d.features}
+          onChange={(e) => onPatch({ features: e.target.value })}
+          placeholder={'24/7 Gym Access\nAll Group Classes'}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-6">
+        <label className="flex items-center gap-2 text-sm text-gym-text">
+          <input type="checkbox" checked={d.isActive} onChange={(e) => onPatch({ isActive: e.target.checked })} className="h-4 w-4 rounded border-gym-border bg-gym-surface text-gym-primary focus:ring-gym-primary" />
+          Active (visible on pricing page)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gym-text">
+          <input type="checkbox" checked={d.isPopular} onChange={(e) => onPatch({ isPopular: e.target.checked })} className="h-4 w-4 rounded border-gym-border bg-gym-surface text-gym-primary focus:ring-gym-primary" />
+          Mark as popular
+        </label>
+        <div className="flex items-center gap-2 text-sm text-gym-text-muted">
+          Sort order
+          <Input type="number" className="w-20" value={d.sortOrder} onChange={(e) => onPatch({ sortOrder: e.target.value })} />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function AdminPricingPage() {
@@ -92,8 +145,8 @@ export default function AdminPricingPage() {
       if (p.isActive) {
         const res = await fetch(`/api/admin/pricing?id=${p.id}`, { method: 'DELETE' })
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed to deactivate')
-        toast.success(`"${p.name}" hidden from pricing pages`)
+        if (!res.ok) throw new Error(data.error || 'Failed to hide plan')
+        toast.success(`"${p.name}" is hidden from pricing pages`)
       } else {
         const res = await fetch('/api/admin/pricing', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: p.id, name: p.name, description: p.description, price: Number(p.price), duration: p.duration, features: p.features, isPopular: p.isPopular, isActive: true, sortOrder: p.sortOrder }) })
@@ -104,56 +157,17 @@ export default function AdminPricingPage() {
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to update plan') } finally { setBusyId(null) }
   }
 
-  const setD = (patch: Partial<DraftState>, setter: (d: DraftState) => void, cur: DraftState) =>
-    setter({ ...cur, ...patch })
-
-  const PackFields = ({ d, onPatch }: { d: DraftState; onPatch: (patch: Partial<DraftState>) => void }) => (
-    <div className="space-y-4">
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Plan name</Label>
-          <Input value={d.name} onChange={(e) => onPatch({ name: e.target.value })} placeholder="Monthly Membership" />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Price (Rs)</Label>
-            <Input type="number" min="0" value={d.price} onChange={(e) => onPatch({ price: e.target.value })} placeholder="3000" />
-          </div>
-          <div className="space-y-2">
-            <Label>Duration (days)</Label>
-            <Input type="number" min="1" value={d.duration} onChange={(e) => onPatch({ duration: e.target.value })} placeholder="30" />
-          </div>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Description</Label>
-        <Input value={d.description} onChange={(e) => onPatch({ description: e.target.value })} placeholder="Short marketing line shown under the plan" />
-      </div>
-      <div className="space-y-2">
-        <Label>Features (one per line)</Label>
-        <textarea
-          className="input-field min-h-[100px]"
-          value={d.features}
-          onChange={(e) => onPatch({ features: e.target.value })}
-          placeholder={'24/7 Gym Access\nAll Group Classes'}
-        />
-      </div>
-      <div className="flex flex-wrap items-center gap-6">
-        <label className="flex items-center gap-2 text-sm text-gym-text">
-          <input type="checkbox" checked={d.isActive} onChange={(e) => onPatch({ isActive: e.target.checked })} className="h-4 w-4 rounded border-gym-border bg-gym-surface text-gym-primary focus:ring-gym-primary" />
-          Active (visible on pricing page)
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gym-text">
-          <input type="checkbox" checked={d.isPopular} onChange={(e) => onPatch({ isPopular: e.target.checked })} className="h-4 w-4 rounded border-gym-border bg-gym-surface text-gym-primary focus:ring-gym-primary" />
-          Mark as popular
-        </label>
-        <div className="flex items-center gap-2 text-sm text-gym-text-muted">
-          Sort order
-          <Input type="number" className="w-20" value={d.sortOrder} onChange={(e) => onPatch({ sortOrder: e.target.value })} />
-        </div>
-      </div>
-    </div>
-  )
+  const deletePack = async (p: AdminPack) => {
+    if (!confirm(`Delete "${p.name}"?\n\nPlans that still have active members cannot be deleted — the server will refuse and you should hide the plan instead.`)) return
+    setBusyId(p.id)
+    try {
+      const res = await fetch(`/api/admin/pricing?id=${p.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete plan')
+      toast.success(`"${p.name}" plan deleted — removed from the website`)
+      fetchPacks()
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to delete plan') } finally { setBusyId(null) }
+  }
 
   return (
     <div className="space-y-6">
@@ -246,8 +260,19 @@ export default function AdminPricingPage() {
                           size="sm"
                           onClick={() => toggleActive(p)}
                           disabled={busyId === p.id}
+                          title={p.isActive ? 'Hide from website' : 'Show on website'}
                         >
                           {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (<><Power className="mr-1 h-4 w-4" />{p.isActive ? 'Hide' : 'Show'}</>)}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deletePack(p)}
+                          disabled={busyId === p.id}
+                          className="text-gym-accent hover:bg-gym-accent/10"
+                          title="Delete plan"
+                        >
+                          {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                         </Button>
                       </div>
                     </div>
