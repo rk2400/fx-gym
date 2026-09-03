@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, CheckCircle, XCircle, Dumbbell, Calendar, Zap, Flame, Target, Loader2, ChevronLeft, ChevronRight, MapPin, Shield, AlertCircle, LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -99,13 +99,30 @@ export default function CheckinPage() {
   const MAX_SESSION_SECONDS = 60 * 60
   const autoStopRef = useRef(false)
 
+  // Clear the live timer immediately (used when a session ends) so no tick can
+  // fire after checkInTimestampRef has been nulled.
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }, [])
+
   // Live elapsed-time timer — ticks every second while checked in
   useEffect(() => {
     if (isCheckedIn && checkInTimestampRef.current) {
       autoStopRef.current = false
       timerRef.current = setInterval(() => {
+        const startedAt = checkInTimestampRef.current
+        // Session ended while a timer tick was in flight (check-out / auto-checkout
+        // already nulled the ref) — stop ticking instead of crashing.
+        if (!startedAt) {
+          if (timerRef.current) clearInterval(timerRef.current)
+          timerRef.current = null
+          return
+        }
         const now = new Date()
-        const elapsed = Math.floor((now.getTime() - checkInTimestampRef.current!.getTime()) / 1000)
+        const elapsed = Math.floor((now.getTime() - startedAt.getTime()) / 1000)
         setElapsedSeconds(elapsed)
         // Auto-stop at the 60-minute cap — no dialog, the session closes itself
         if (elapsed >= MAX_SESSION_SECONDS && !autoStopRef.current) {
@@ -125,7 +142,9 @@ export default function CheckinPage() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch('/api/dashboard/checkins?limit=30')
+      // Pull a large window so the Quick Stats below can compute accurate
+      // weekly/monthly totals, total time, and averages from real data.
+      const res = await fetch('/api/dashboard/checkins?limit=500')
       if (res.ok) {
         setHistory(await res.json())
       }
@@ -250,6 +269,7 @@ export default function CheckinPage() {
       setHistory(prev => prev.map(c =>
         c.id === updatedCheckin.id ? updatedCheckin : c
       ))
+      stopTimer()
       setIsCheckedIn(false)
       setCheckInTime('')
       checkInTimestampRef.current = null
@@ -282,6 +302,7 @@ export default function CheckinPage() {
         fetchHistory()
         toast.info('Session auto-closed after 60 minutes')
       }
+      stopTimer()
       setIsCheckedIn(false)
       setCheckInTime('')
       checkInTimestampRef.current = null
@@ -306,6 +327,53 @@ export default function CheckinPage() {
   // Uncomment once testing is completed
   // const canCheckIn = locationState === 'verified' && gymLocation?.allowed
   const canCheckIn = true // Always allow check-in during testing
+
+  // Real-time Quick Stats — computed from the fetched check-in history:
+  // this week's visits, this month's visits, total workout time, and the
+  // average session length (completed sessions only).
+  const stats = useMemo(() => {
+    const now = new Date()
+    // Start of the current week (Monday midnight)
+    const dayOfWeek = now.getDay()
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    const weekStart = new Date(now)
+    weekStart.setHours(0, 0, 0, 0)
+    weekStart.setDate(now.getDate() - daysSinceMonday)
+    // Start of the current month
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    let weekVisits = 0
+    let monthVisits = 0
+    let totalMinutes = 0
+    let completedMinutes = 0
+    let completedSessions = 0
+
+    for (const c of history) {
+      const t = c.checkedIn ? new Date(c.checkedIn) : new Date(`${c.date}T00:00:00`)
+      if (isNaN(t.getTime())) continue
+
+      if (t >= weekStart) weekVisits++
+      if (t >= monthStart && t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth()) monthVisits++
+
+      const mins = c.duration || 0
+      totalMinutes += mins
+      if (mins > 0) {
+        completedSessions++
+        completedMinutes += mins
+      }
+    }
+
+    const hours = Math.floor(totalMinutes / 60)
+    const remainingMins = totalMinutes % 60
+    const avgMin = completedSessions > 0 ? Math.round(completedMinutes / completedSessions) : 0
+
+    return {
+      weekVisits,
+      monthVisits,
+      totalTime: totalMinutes > 0 ? `${hours}h ${remainingMins}m` : '0m',
+      avgMin: avgMin > 0 ? `${avgMin} min` : '—',
+    }
+  }, [history])
 
   // Format elapsed seconds into HH:MM:SS display
   const formatElapsedTime = (totalSeconds: number): string => {
@@ -684,10 +752,10 @@ export default function CheckinPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard label="This Week" value="4" subtitle="visits" icon={Dumbbell} color="from-gym-primary to-green-600" />
-              <StatCard label="This Month" value="12" subtitle="visits" icon={Calendar} color="from-gym-secondary to-blue-600" />
-              <StatCard label="Total Time" value="8h 30m" subtitle="worked out" icon={Clock} color="from-purple-500 to-gym-secondary" />
-              <StatCard label="Avg/Session" value="52 min" subtitle="per visit" icon={Zap} color="from-orange-500 to-red-500" />
+              <StatCard label="This Week" value={String(stats.weekVisits)} subtitle="visits" icon={Dumbbell} color="from-gym-primary to-green-600" />
+              <StatCard label="This Month" value={String(stats.monthVisits)} subtitle="visits" icon={Calendar} color="from-gym-secondary to-blue-600" />
+              <StatCard label="Total Time" value={stats.totalTime} subtitle="worked out" icon={Clock} color="from-purple-500 to-gym-secondary" />
+              <StatCard label="Avg/Session" value={stats.avgMin} subtitle="per visit" icon={Zap} color="from-orange-500 to-red-500" />
             </div>
           </CardContent>
         </Card>
@@ -766,7 +834,7 @@ function StatCard({ label, value, subtitle, icon: Icon, color }: {
 }) {
   return (
     <div className="p-4 rounded-xl bg-gym-bg border border-gym-border">
-      <div className="p-2 rounded-lg bg-gradient-to-br {color} mb-3">
+      <div className={`p-2 rounded-lg bg-gradient-to-br ${color} mb-3`}>
         <Icon className="h-5 w-5 text-white" />
       </div>
       <p className="font-heading text-2xl font-bold text-gym-text">{value}</p>

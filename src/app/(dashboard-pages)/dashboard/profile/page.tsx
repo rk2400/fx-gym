@@ -13,6 +13,7 @@ import {
   Ruler,
   HeartPulse,
   MapPin,
+  Lock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -127,6 +128,8 @@ export default function ProfilePage() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [deactivating, setDeactivating] = useState(false)
+  const [pw, setPw] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [changingPw, setChangingPw] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -176,6 +179,37 @@ export default function ProfilePage() {
       toast.error(error instanceof Error ? error.message : 'Failed to update profile')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!pw.currentPassword.trim()) {
+      toast.error('Enter your current password')
+      return
+    }
+    if (pw.newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters')
+      return
+    }
+    if (pw.newPassword !== pw.confirmPassword) {
+      toast.error('New passwords do not match')
+      return
+    }
+    setChangingPw(true)
+    try {
+      const res = await fetch('/api/dashboard/profile/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pw),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update password')
+      setPw({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      toast.success('Password updated successfully!')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update password')
+    } finally {
+      setChangingPw(false)
     }
   }
 
@@ -431,6 +465,76 @@ export default function ProfilePage() {
                 </div>
               )}
             </form>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Security — Change password */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <Card className="bg-gym-surface border-gym-border">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Lock className="h-5 w-5 text-gym-primary" aria-hidden="true" />
+              <span>Change Password</span>
+            </CardTitle>
+            <CardDescription>
+              Update the password you use to sign in to your FX Gym account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Enter current password"
+                  value={pw.currentPassword}
+                  onChange={(e) => setPw((p) => ({ ...p, currentPassword: e.target.value }))}
+                  disabled={changingPw}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Min 8 chars · A-Z · a-z · 0-9 · special"
+                  value={pw.newPassword}
+                  onChange={(e) => setPw((p) => ({ ...p, newPassword: e.target.value }))}
+                  disabled={changingPw}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Re-enter new password"
+                  value={pw.confirmPassword}
+                  onChange={(e) => setPw((p) => ({ ...p, confirmPassword: e.target.value }))}
+                  disabled={changingPw}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button type="button" onClick={handleChangePassword} disabled={changingPw}>
+                {changingPw ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Update Password
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

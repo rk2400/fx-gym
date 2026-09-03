@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
@@ -37,22 +37,8 @@ const contactInfo = [
 
 export function ContactInfoSection() {
   return (
-    <section className="section bg-gym-surface border-y border-gym-border" aria-labelledby="contact-info-heading">
+    <section className="section bg-gym-surface border-y border-gym-border" aria-label="Contact information">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <h2 id="contact-info-heading" className="heading-2 text-gym-text mb-4">
-            Get in <span className="gradient-text">Touch</span>
-          </h2>
-          <p className="text-body-lg max-w-2xl mx-auto text-gym-text-muted">
-            Multiple ways to reach us. Choose what works best for you.
-          </p>
-        </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {contactInfo.map((item, index) => (

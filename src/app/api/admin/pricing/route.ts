@@ -146,7 +146,13 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-/** Soft-delete: deactivate so historical memberships keep their reference. */
+/**
+ * Delete a pricing plan.
+ * - No memberships at all          → permanently deleted from the database.
+ * - Active members are enrolled    → refused (admin should Hide the plan instead).
+ * - Only historical memberships    → soft-deleted (hidden) so archived records
+ *                                    keep their plan reference.
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const session = await requireAdmin()
@@ -155,17 +161,42 @@ export async function DELETE(request: NextRequest) {
     const id = new URL(request.url).searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'Plan id is required' }, { status: 400 })
 
+    const pack = await prisma.pricingPack.findUnique({
+      where: { id },
+      include: { _count: { select: { memberships: true } } },
+    })
+    if (!pack) return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
+
     const activeMembers = await prisma.membership.count({
       where: { pricingPackId: id, status: 'ACTIVE' },
     })
     if (activeMembers > 0) {
       return NextResponse.json(
-        { error: `Cannot delete: ${activeMembers} active member(s) are on this plan. Deactivate it instead.` },
+        { error: `Cannot delete: ${activeMembers} active member(s) are on this plan. Hide it instead.` },
         { status: 400 }
       )
     }
 
-    const pack = await prisma.pricingPack.update({
+    // No price-plan memberships at all → permanent delete.
+    if (pack._count.memberships === 0) {
+      await prisma.pricingPack.delete({ where: { id } })
+
+      await prisma.auditLog.create({
+        data: {
+          userId: (session.user as any).id,
+          action: 'PRICING_PLAN_DELETED',
+          entity: 'PricingPack',
+          entityId: id,
+          newData: { name: pack.name },
+        },
+      })
+
+      return NextResponse.json({ success: true, permanent: true })
+    }
+
+    // Historical memberships still reference this plan → soft-delete (hide it),
+    // because a hard delete would be blocked by the foreign key.
+    const updated = await prisma.pricingPack.update({
       where: { id },
       data: { isActive: false },
     })
@@ -176,11 +207,11 @@ export async function DELETE(request: NextRequest) {
         action: 'PRICING_PLAN_DEACTIVATED',
         entity: 'PricingPack',
         entityId: id,
-        newData: { name: pack.name },
+        newData: { name: updated.name },
       },
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, permanent: false })
   } catch (error) {
     console.error('Admin pricing DELETE error:', error)
     return NextResponse.json({ error: 'Failed to delete plan' }, { status: 500 })

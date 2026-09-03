@@ -8,14 +8,16 @@ import { useState } from 'react'
 import { signOut } from 'next-auth/react'
 import {
   Dumbbell, User, Users, CreditCard, Clock, Flame, LogOut, Menu, X,
-  Calendar, BarChart3, Settings, Shield, UserCog, Tag,
+  Calendar, BarChart3, Settings, Shield, UserCog, Tag, Bell, Megaphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { NotificationBell } from '@/components/layout/notification-bell'
 
 // Each role gets its own navigation and its own landing dashboard
 const memberNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: Dumbbell },
   { label: 'Profile', href: '/dashboard/profile', icon: User },
+  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   { label: 'Membership', href: '/dashboard/membership', icon: CreditCard },
   { label: 'Check-in', href: '/dashboard/checkin', icon: Clock },
   { label: 'Streaks', href: '/dashboard/streak', icon: Flame },
@@ -25,6 +27,7 @@ const adminNavItems = [
   { label: 'Overview', href: '/admin', icon: BarChart3 },
   { label: 'Users', href: '/admin/users', icon: Users },
   { label: 'Membership Plans', href: '/admin/pricing', icon: Tag },
+  { label: 'Announcements', href: '/admin/announcements', icon: Megaphone },
   { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ]
@@ -170,6 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </span>
               )}
             </div>
+            {(role === 'MEMBER' || role === 'TRAINER') && <NotificationBell />}
             <button
               onClick={() => signOut({ callbackUrl: '/' })}
               className="p-2 rounded-lg text-gym-text-muted hover:text-gym-text hover:bg-gym-bg transition-colors"

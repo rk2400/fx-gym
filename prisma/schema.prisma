@@ -36,6 +36,8 @@ model User {
   assignedTrainerId String? @map("assigned_trainer_id")
   assignedTrainer   User?  @relation("TrainerClients", fields: [assignedTrainerId], references: [id])
   clients         User[] @relation("TrainerClients")
+  announcementsCreated Announcement[] @relation("AnnouncementsCreated")
+  announcementReceipts AnnouncementRecipient[]
 
   @@index([email])
   @@index([memberId])
@@ -127,6 +129,36 @@ model Checkin {
   checkedIn DateTime @default(now()) @map("checked_in")
   checkedOut DateTime? @map("checked_out")
   type      String?  @map("workout_type")
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text // Rich-text HTML body authored by the admin
+  createdById String   @map("created_by_id")
+  createdBy   User     @relation("AnnouncementsCreated", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  recipients AnnouncementRecipient[]
+
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model AnnouncementRecipient {
+  id             String       @id @default(cuid())
+  announcementId String       @map("announcement_id")
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime?    @map("read_at")
+  emailSentAt    DateTime?    @map("email_sent_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([announcementId, userId])
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 model ContactMessage {

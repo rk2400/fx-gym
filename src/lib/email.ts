@@ -491,3 +491,59 @@ export function getFirstLoginWelcomeEmail(
 
   return { subject: `Welcome to FX Gym, ${name}!`, html, text };
 }
+
+export interface AnnouncementEmailData {
+  title: string
+  contentHtml: string
+  recipientName: string | null
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h1|h2|h3|blockquote|tr)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+/** Renders a gym announcement as a nicely formatted dark-themed HTML email. */
+export function getAnnouncementEmail(data: AnnouncementEmailData): EmailTemplateResult {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a2e; max-width: 640px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #0a0a0f 0%, #12121a 100%); border-radius: 16px; padding: 40px; color: #f0f0f5;">
+          <div style="text-align:center; margin-bottom: 16px;"><span style="font-size: 32px;">📣</span></div>
+          <p style="text-align:center; color:#888899; font-size:12px; margin:0 0 8px; text-transform:uppercase; letter-spacing:1px;">FX Gym Announcement</p>
+          <h1 style="color:#f0f0f5; text-align:center; margin:0 0 24px; font-size:22px; line-height:1.3;">${escapeHtml(data.title)}</h1>
+          <div style="background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:24px; color:#e8e8ee; font-size:15px;">
+            ${data.contentHtml}
+          </div>
+          <p style="color:#555566; font-size:12px; margin:24px 0 0; text-align:center;">You received this because you are an active FX Gym member. Questions? Contact the gym front desk.</p>
+        </div>
+      </body>
+    </html>
+  `
+
+  const text = [
+    'FX GYM ANNOUNCEMENT',
+    '',
+    data.title,
+    '',
+    stripHtml(data.contentHtml),
+    '',
+    '— FX Gym',
+  ].join('\n')
+
+  return { subject: `📣 ${data.title}`, html, text };
+}

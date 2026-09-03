@@ -143,10 +143,15 @@ export default function AdminPricingPage() {
     setBusyId(p.id)
     try {
       if (p.isActive) {
-        const res = await fetch(`/api/admin/pricing?id=${p.id}`, { method: 'DELETE' })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed to hide plan')
-        toast.success(`"${p.name}" is hidden from pricing pages`)
+        // Hide via PATCH (isActive:false) — DELETE is reserved for actual deletion,
+        // so hiding a plan with no members NEVER permanently removes it.
+        const res = await fetch('/api/admin/pricing', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: p.id, ...payloadOf(toDraft(p)), isActive: false }),
+        })
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to hide') }
+        toast.success(`"${p.name}" is now hidden from the website`)
       } else {
         const res = await fetch('/api/admin/pricing', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: p.id, name: p.name, description: p.description, price: Number(p.price), duration: p.duration, features: p.features, isPopular: p.isPopular, isActive: true, sortOrder: p.sortOrder }) })
@@ -158,13 +163,22 @@ export default function AdminPricingPage() {
   }
 
   const deletePack = async (p: AdminPack) => {
-    if (!confirm(`Delete "${p.name}"?\n\nPlans that still have active members cannot be deleted — the server will refuse and you should hide the plan instead.`)) return
+    const totalMembers = p._count?.memberships ?? 0
+    const msg = totalMembers === 0
+      ? `Permanently delete "${p.name}"? This cannot be undone.`
+      : `Delete "${p.name}"? It has ${totalMembers} membership record(s) — it will be hidden from the website instead of permanently removed.`
+    if (!confirm(msg)) return
     setBusyId(p.id)
     try {
       const res = await fetch(`/api/admin/pricing?id=${p.id}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete plan')
-      toast.success(`"${p.name}" plan deleted — removed from the website`)
+      toast.success(
+        data.permanent
+          ? `"${p.name}" permanently deleted.`
+          : `"${p.name}" hidden — it has historical memberships.`
+      )
+      setPacks((prev) => prev.filter((x) => x.id !== p.id) || prev)
       fetchPacks()
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to delete plan') } finally { setBusyId(null) }
   }
