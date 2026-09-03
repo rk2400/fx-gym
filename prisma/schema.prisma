@@ -38,6 +38,7 @@ model User {
   clients         User[] @relation("TrainerClients")
   announcementsCreated Announcement[] @relation("AnnouncementsCreated")
   announcementReceipts AnnouncementRecipient[]
+  invoices             Invoice[]
 
   @@index([email])
   @@index([memberId])
@@ -120,6 +121,36 @@ model Membership {
   stripeSubId    String?           @map("stripe_sub_id")
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
+  invoices       Invoice[]
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique @map("invoice_number")
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Nullable + SetNull so invoice history survives a membership being deleted,
+  // while the 1:1 link prevents duplicate invoices for the same term.
+  membershipId  String?  @map("membership_id")
+  membership    Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  // Denormalised plan snapshot — invoices must stay accurate even if the
+  // pricing pack is later edited or deleted.
+  planName      String   @map("plan_name")
+  issueDate     DateTime @default(now()) @map("issue_date")
+  periodStart   DateTime? @map("period_start")
+  periodEnd     DateTime? @map("period_end")
+  subtotal      Decimal  @db.Decimal(10, 2)
+  taxRatePct    Decimal  @default(0) @db.Decimal(5, 2) @map("tax_rate_pct")
+  taxAmount     Decimal  @default(0) @db.Decimal(10, 2) @map("tax_amount")
+  total         Decimal  @db.Decimal(10, 2)
+  currency      String   @default("INR")
+  status        String   @default("PAID") // PAID | PENDING | CANCELLED
+  paymentMethod String?  @map("payment_method")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, issueDate])
 }
 
 model Checkin {
@@ -251,4 +282,25 @@ enum OTPType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
   LOGIN_2FA
+}
+model GymSettings {
+  id                String   @id @default("singleton")
+  name              String
+  legalName         String   @map("legal_name")
+  tagline           String   @default("")
+  addressLine1      String   @map("address_line1")
+  addressLine2      String   @default("") @map("address_line2")
+  phone             String
+  email             String
+  website           String
+  gstEnabled        Boolean  @default(true) @map("gst_enabled")
+  gstin             String   @default("")
+  sac               String   @default("")
+  gstRatePct        Decimal  @default(18.00) @db.Decimal(5, 2) @map("gst_rate_pct")
+  gstMode           String   @default("CGST_SGST") @map("gst_mode")
+  placeOfSupply     String   @default("") @map("place_of_supply")
+  upiId             String   @default("") @map("upi_id")
+  invoiceFooterNote String   @default("") @map("invoice_footer_note")
+  invoiceTerms      String   @default("") @map("invoice_terms")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 }

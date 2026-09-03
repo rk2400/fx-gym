@@ -11,6 +11,7 @@ import {
   Loader2,
   Sparkles,
   Clock,
+  Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -50,6 +51,28 @@ export default function MembershipPage() {
   const [loading, setLoading] = useState(true)
   const [membership, setMembership] = useState<MembershipData | null>(null)
   const [packs, setPacks] = useState<PackOption[]>([])
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownloadInvoice = async () => {
+    setDownloading(true)
+    try {
+      const res = await fetch('/api/invoices/pdf')
+      if (!res.ok) throw new Error('Failed to generate invoice')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `FX-Gym-Invoice-${new Date().toISOString().slice(0, 10)}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      toastError('Could not download invoice')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -161,12 +184,18 @@ export default function MembershipPage() {
                     <Calendar className="h-4 w-4 text-gym-primary" aria-hidden="true" />
                     <span>Started {formatDate(membership.startDate)}</span>
                   </div>
-                  {membership.status === 'PENDING' && (
-                    <div className="flex items-center space-x-2 text-sm text-gym-warning">
-                      <Clock className="h-4 w-4" aria-hidden="true" />
-                      <span>Awaiting activation</span>
-                    </div>
-                  )}
+                  <div className="flex items-center space-x-3">
+                    {membership.status === 'PENDING' && (
+                      <div className="flex items-center space-x-2 text-sm text-gym-warning">
+                        <Clock className="h-4 w-4" aria-hidden="true" />
+                        <span>Awaiting activation</span>
+                      </div>
+                    )}
+                    <Button variant="outline" size="sm" onClick={handleDownloadInvoice} disabled={downloading}>
+                      {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="mr-2 h-4 w-4" aria-hidden="true" />}
+                      {downloading ? 'Generating…' : 'Download Invoice (PDF)'}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -252,6 +281,6 @@ export default function MembershipPage() {
   )
 }
 
-function toastError() {
-  import('sonner').then(({ toast }) => toast.error('Could not load your membership'))
+function toastError(message?: string) {
+  import('sonner').then(({ toast }) => toast.error(message || 'Could not load your membership'))
 }

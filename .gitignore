@@ -49,3 +49,5 @@ prisma/migrations/
 
 # OS
 Thumbs.db
+# generated invoice test artifacts
+/invoice-sample.pdf
